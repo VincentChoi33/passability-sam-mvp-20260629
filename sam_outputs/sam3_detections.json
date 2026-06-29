@@ -1,0 +1,134 @@
+[
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 143271,
+    "bbox": [
+      47,
+      993,
+      1488,
+      1535
+    ]
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1519,
+    "bbox": [
+      719,
+      717,
+      767,
+      763
+    ]
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 81628,
+    "bbox": [
+      719,
+      994,
+      1488,
+      1535
+    ]
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 62125,
+    "bbox": [
+      46,
+      996,
+      702,
+      1535
+    ]
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 142668,
+    "bbox": [
+      47,
+      993,
+      1488,
+      1535
+    ]
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1544,
+    "bbox": [
+      719,
+      716,
+      767,
+      763
+    ]
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 142427,
+    "bbox": [
+      47,
+      992,
+      1489,
+      1535
+    ]
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 2085,
+    "bbox": [
+      299,
+      1162,
+      425,
+      1293
+    ]
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1422,
+    "bbox": [
+      706,
+      989,
+      719,
+      1135
+    ]
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1997,
+    "bbox": [
+      298,
+      1161,
+      425,
+      1292
+    ]
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1444,
+    "bbox": [
+      706,
+      989,
+      719,
+      1135
+    ]
+  }
+]
