@@ -3123,8 +3123,13 @@
       }
 
       el.dataStatus.textContent = "공간정보 로딩";
-      const osmOk = await loadOsmFeatures();
-      if (!osmOk) applySyntheticFeatures();
+      const samReadyForAoi = state.samDataset && samDatasetMatchesCurrentAoi();
+      if (samReadyForAoi) {
+        el.dataStatus.textContent = "SAM3.1 판독 적용";
+      } else {
+        const osmOk = await loadOsmFeatures();
+        if (!osmOk) applySyntheticFeatures();
+      }
       applySampleImageSegmentation();
       const samApplied = applySamSegmentationGrid();
 
