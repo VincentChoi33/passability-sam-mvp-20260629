@@ -84,6 +84,78 @@
     ]
   },
   {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 142717,
+    "bbox": [
+      47,
+      992,
+      1488,
+      1535
+    ]
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 143244,
+    "bbox": [
+      47,
+      993,
+      1489,
+      1535
+    ]
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 145513,
+    "bbox": [
+      46,
+      34,
+      1489,
+      1535
+    ]
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 62475,
+    "bbox": [
+      45,
+      995,
+      701,
+      1535
+    ]
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 142785,
+    "bbox": [
+      47,
+      993,
+      1489,
+      1535
+    ]
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 82025,
+    "bbox": [
+      719,
+      994,
+      1489,
+      1535
+    ]
+  },
+  {
     "class": "bridge",
     "prompt": "bridge",
     "score": 1.0,
@@ -129,6 +201,762 @@
       989,
       719,
       1135
+    ]
+  },
+  {
+    "class": "forest",
+    "prompt": "dense vegetation",
+    "score": 1.0,
+    "area_px": 7884,
+    "bbox": [
+      593,
+      500,
+      698,
+      611
+    ]
+  },
+  {
+    "class": "forest",
+    "prompt": "dense vegetation",
+    "score": 1.0,
+    "area_px": 20772,
+    "bbox": [
+      818,
+      404,
+      1014,
+      571
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 212,
+    "bbox": [
+      1394,
+      10,
+      1428,
+      23
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 161,
+    "bbox": [
+      1527,
+      45,
+      1536,
+      76
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 138,
+    "bbox": [
+      1373,
+      64,
+      1383,
+      95
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1144,
+    "bbox": [
+      320,
+      96,
+      354,
+      215
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 341,
+    "bbox": [
+      1522,
+      110,
+      1536,
+      180
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 52,
+    "bbox": [
+      995,
+      118,
+      1002,
+      138
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 246,
+    "bbox": [
+      365,
+      137,
+      381,
+      179
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1131,
+    "bbox": [
+      143,
+      139,
+      167,
+      220
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1490,
+    "bbox": [
+      197,
+      150,
+      230,
+      267
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 111,
+    "bbox": [
+      1418,
+      152,
+      1428,
+      176
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 137,
+    "bbox": [
+      972,
+      165,
+      982,
+      189
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 918,
+    "bbox": [
+      122,
+      226,
+      150,
+      319
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 325,
+    "bbox": [
+      322,
+      295,
+      368,
+      313
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 383,
+    "bbox": [
+      89,
+      325,
+      103,
+      380
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 347,
+    "bbox": [
+      1524,
+      333,
+      1536,
+      400
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 609,
+    "bbox": [
+      41,
+      393,
+      65,
+      470
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 77,
+    "bbox": [
+      369,
+      429,
+      376,
+      448
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 665,
+    "bbox": [
+      192,
+      445,
+      226,
+      535
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 788,
+    "bbox": [
+      0,
+      452,
+      27,
+      530
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 257,
+    "bbox": [
+      73,
+      468,
+      90,
+      510
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 61,
+    "bbox": [
+      1477,
+      475,
+      1484,
+      495
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 564,
+    "bbox": [
+      237,
+      477,
+      258,
+      537
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 70,
+    "bbox": [
+      1181,
+      482,
+      1200,
+      488
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 313,
+    "bbox": [
+      3,
+      552,
+      19,
+      592
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 155,
+    "bbox": [
+      469,
+      559,
+      481,
+      592
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 698,
+    "bbox": [
+      1297,
+      565,
+      1322,
+      629
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 56,
+    "bbox": [
+      149,
+      581,
+      155,
+      601
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 347,
+    "bbox": [
+      1395,
+      592,
+      1414,
+      643
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 40,
+    "bbox": [
+      1157,
+      617,
+      1163,
+      632
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 49,
+    "bbox": [
+      521,
+      624,
+      527,
+      639
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 722,
+    "bbox": [
+      1366,
+      637,
+      1396,
+      711
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 44,
+    "bbox": [
+      1519,
+      680,
+      1536,
+      686
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 58,
+    "bbox": [
+      1309,
+      737,
+      1326,
+      744
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1550,
+    "bbox": [
+      1313,
+      744,
+      1354,
+      844
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1700,
+    "bbox": [
+      1377,
+      776,
+      1413,
+      914
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1002,
+    "bbox": [
+      1419,
+      795,
+      1445,
+      886
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 397,
+    "bbox": [
+      1359,
+      833,
+      1374,
+      889
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 36,
+    "bbox": [
+      336,
+      837,
+      340,
+      852
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 92,
+    "bbox": [
+      0,
+      857,
+      8,
+      878
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 50,
+    "bbox": [
+      1350,
+      883,
+      1356,
+      898
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 724,
+    "bbox": [
+      1147,
+      921,
+      1173,
+      994
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 52,
+    "bbox": [
+      1104,
+      933,
+      1119,
+      939
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 132,
+    "bbox": [
+      1324,
+      975,
+      1334,
+      1002
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 43,
+    "bbox": [
+      60,
+      988,
+      66,
+      1004
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 68,
+    "bbox": [
+      1243,
+      992,
+      1263,
+      1000
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 61,
+    "bbox": [
+      1338,
+      1004,
+      1345,
+      1021
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1296,
+    "bbox": [
+      1500,
+      1014,
+      1536,
+      1120
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 939,
+    "bbox": [
+      1421,
+      1029,
+      1448,
+      1099
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 338,
+    "bbox": [
+      1236,
+      1100,
+      1252,
+      1152
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 484,
+    "bbox": [
+      783,
+      1165,
+      800,
+      1219
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 162,
+    "bbox": [
+      853,
+      1179,
+      864,
+      1213
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 337,
+    "bbox": [
+      1517,
+      1180,
+      1536,
+      1229
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 50,
+    "bbox": [
+      150,
+      1185,
+      169,
+      1190
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 37,
+    "bbox": [
+      522,
+      1195,
+      527,
+      1210
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 608,
+    "bbox": [
+      668,
+      1251,
+      692,
+      1318
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 869,
+    "bbox": [
+      1373,
+      1254,
+      1469,
+      1288
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 2230,
+    "bbox": [
+      835,
+      1333,
+      875,
+      1505
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 1659,
+    "bbox": [
+      795,
+      1393,
+      830,
+      1536
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 78,
+    "bbox": [
+      538,
+      1431,
+      545,
+      1451
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 200,
+    "bbox": [
+      1199,
+      1449,
+      1215,
+      1489
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 126,
+    "bbox": [
+      398,
+      1498,
+      428,
+      1509
     ]
   }
 ]
