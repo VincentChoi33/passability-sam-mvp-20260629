@@ -68,7 +68,7 @@
     }
 
     .brand {
-      flex: 0 0 330px;
+      flex: 0 0 230px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -94,6 +94,7 @@
     }
 
     .status-pill {
+      display: none;
       min-width: 104px;
       max-width: 132px;
       border: 1px solid #3a4652;
@@ -181,19 +182,31 @@
       gap: 10px;
     }
 
-    .section:nth-of-type(2) .menu-panel {
+    .menu-conditions .menu-panel {
+      width: 340px;
+    }
+
+    .menu-background .menu-panel {
+      width: 360px;
+    }
+
+    .menu-blocking .menu-panel {
+      width: 360px;
+    }
+
+    .menu-route .menu-panel {
       width: 560px;
     }
 
-    .section:nth-of-type(3) .menu-panel {
+    .menu-legend .menu-panel {
       width: 320px;
     }
 
-    .section:nth-of-type(4) .menu-panel {
+    .menu-cell .menu-panel {
       width: 410px;
     }
 
-    .section:nth-of-type(5) .menu-panel {
+    .menu-logic .menu-panel {
       width: min(620px, calc(100vw - 24px));
       max-height: calc(100vh - 108px);
     }
@@ -468,12 +481,12 @@
     .topbar {
       position: absolute;
       top: 12px;
-      left: 12px;
+      left: 370px;
       right: 12px;
       z-index: 500;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       pointer-events: none;
       gap: 12px;
     }
@@ -488,6 +501,78 @@
       color: #dce5ea;
       font-size: 12px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+    }
+
+    .route-card {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 560;
+      width: 338px;
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 8px;
+      background: rgba(16, 21, 27, .94);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, .42);
+    }
+
+    .route-card-row {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .route-dot {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, .88);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, .24);
+    }
+
+    .route-dot.start-dot {
+      background: var(--cyan);
+    }
+
+    .route-dot.end-dot {
+      background: #ff7c66;
+    }
+
+    .route-card button,
+    .route-card select {
+      height: 38px;
+    }
+
+    .route-card button {
+      text-align: left;
+      padding: 0 12px;
+      font-weight: 700;
+    }
+
+    .vehicle-strip {
+      display: grid;
+      gap: 6px;
+    }
+
+    .vehicle-strip span {
+      color: #9aa8b4;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .route-card .route-recalc {
+      text-align: center;
+      background: #173457;
+      border-color: #4272a6;
     }
 
     .leaflet-container {
@@ -539,6 +624,20 @@
         padding: 0 0 8px;
       }
 
+      .route-card {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        width: auto;
+      }
+
+      .topbar {
+        top: 184px;
+        left: 8px;
+        right: 8px;
+        justify-content: space-between;
+      }
+
       .menu-panel {
         position: fixed;
         top: 78px;
@@ -561,18 +660,8 @@
         <div id="dataStatus" class="status-pill">시작 중</div>
       </div>
 
-      <section class="section">
-        <h2>설정</h2>
-        <div class="control">
-          <label for="vehicleSelect">이동 주체</label>
-          <select id="vehicleSelect">
-            <option value="person">도보 인원</option>
-            <option value="atv">ATV / 오토바이</option>
-            <option value="light">소형 4x4 차량</option>
-            <option value="heavy">대형 트럭</option>
-            <option value="tracked">궤도형 지원차량</option>
-          </select>
-        </div>
+      <section class="section menu-conditions">
+        <h2>이동조건</h2>
         <div class="control">
           <label for="rainSlider">최근 강우량: <span id="rainValue">24</span> mm / 72시간</label>
           <input id="rainSlider" type="range" min="0" max="90" value="24" step="3" />
@@ -591,6 +680,10 @@
           </div>
           <p class="note">입력값은 기준속도이고, 실제 ETA는 경사/노면/진흙/신뢰도 난이도 보정을 적용합니다.</p>
         </div>
+      </section>
+
+      <section class="section menu-background">
+        <h2>배경설정</h2>
         <div class="control">
           <label for="gridOpacitySlider">격자 표시 강도: <span id="gridOpacityValue">58</span>%</label>
           <input id="gridOpacitySlider" type="range" min="20" max="90" value="58" step="2" />
@@ -616,12 +709,11 @@
           </label>
           <p class="note">기본 관심영역은 SAM3.1 영상분할 결과를 읽어 수계, 소하천, 산지도로, 등산로, 수목을 격자 판정에 반영합니다. 다른 위치로 이동하면 브라우저 샘플 판독으로 대체됩니다.</p>
         </div>
-        <div class="button-row">
-          <button id="startModeBtn">출발지 지정</button>
-          <button id="endModeBtn">도착지 지정</button>
-        </div>
+      </section>
+
+      <section class="section menu-blocking">
+        <h2>차단</h2>
         <div class="control">
-          <label>현장 상황 반영</label>
           <label for="blockReasonSelect">차단 종류</label>
           <select id="blockReasonSelect">
             <option value="restricted">임시통제 / 명령상 금지</option>
@@ -642,13 +734,10 @@
           </div>
           <p class="note">차단구역 지정 모드에서 지도를 드래그하면 지정한 사각 범위대로 검정 차단구역이 생성됩니다. 그냥 클릭하면 기본 지정 크기로 생성됩니다. 차단구역 해제는 클릭한 지정구역 전체를 삭제합니다.</p>
         </div>
-        <div class="button-row single">
-          <button id="routeBtn">경로 다시 계산</button>
-        </div>
         <p class="note">격자를 클릭하면 판단 이유를 볼 수 있습니다. 출발지/도착지는 가장 가까운 10m 격자에 맞춰집니다.</p>
       </section>
 
-      <section class="section">
+      <section class="section menu-route">
         <h2>경로</h2>
         <div class="route-options">
           <button class="route-option active" data-route-index="0">
@@ -698,7 +787,7 @@
         </div>
       </section>
 
-      <section class="section">
+      <section class="section menu-legend">
         <h2>범례</h2>
         <div class="legend">
           <div class="legend-item"><span class="swatch green"></span>통과 가능</div>
@@ -712,7 +801,7 @@
         </div>
       </section>
 
-      <section class="section">
+      <section class="section menu-cell">
         <h2>격자 설명</h2>
         <div id="reasonBox" class="reason-box">
           <div class="reason-title">
@@ -723,7 +812,7 @@
         </div>
       </section>
 
-      <section class="section">
+      <section class="section menu-logic">
         <h2>계산 논리</h2>
         <div class="explain">
           <div class="explain-block">
@@ -814,6 +903,27 @@
 
     <main class="map-wrap">
       <div id="map"></div>
+      <div class="route-card" aria-label="경로 지정">
+        <div class="route-card-row">
+          <span class="route-dot start-dot">출</span>
+          <button id="startModeBtn">출발지 지정</button>
+        </div>
+        <div class="route-card-row">
+          <span class="route-dot end-dot">도</span>
+          <button id="endModeBtn">도착지 지정</button>
+        </div>
+        <label class="vehicle-strip" for="vehicleSelect">
+          <span>이동 주체</span>
+          <select id="vehicleSelect">
+            <option value="person">도보 인원</option>
+            <option value="atv">ATV / 오토바이</option>
+            <option value="light">소형 4x4 차량</option>
+            <option value="heavy">대형 트럭</option>
+            <option value="tracked">궤도형 지원차량</option>
+          </select>
+        </label>
+        <button id="routeBtn" class="route-recalc">경로 다시 계산</button>
+      </div>
       <div class="topbar">
         <div id="aoiChip" class="chip">관심영역: 5.0km x 5.0km, 10m 격자</div>
         <div id="modeChip" class="chip">모드: 조회</div>
