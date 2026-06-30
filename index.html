@@ -3087,12 +3087,33 @@
 
     function smoothRoute(route) {
       if (route.length <= 2) return route;
-      const out = [route[0]];
-      let anchor = 0;
-      const maxSpan = 42;
-      while (anchor < route.length - 1) {
+      const anchors = [0];
+      for (let n = 1; n < route.length - 1; n++) {
+        if (shouldPreserveRoutePoint(route[n])) anchors.push(n);
+      }
+      anchors.push(route.length - 1);
+
+      const out = [];
+      for (let a = 1; a < anchors.length; a++) {
+        const start = anchors[a - 1];
+        const end = anchors[a];
+        const segment = smoothRouteSegment(route, start, end);
+        for (const p of segment) {
+          if (out.length && out[out.length - 1].i === p.i && out[out.length - 1].j === p.j) continue;
+          out.push(p);
+        }
+      }
+      return out;
+    }
+
+    function smoothRouteSegment(route, start, end) {
+      if (end <= start + 2) return route.slice(start, end + 1);
+      const out = [route[start]];
+      let anchor = start;
+      const maxSpan = 24;
+      while (anchor < end) {
         let best = anchor + 1;
-        const last = Math.min(route.length - 1, anchor + maxSpan);
+        const last = Math.min(end, anchor + maxSpan);
         for (let probe = last; probe > anchor + 1; probe--) {
           if (segmentIsTraversable(route[anchor], route[probe])) {
             best = probe;
@@ -3103,6 +3124,23 @@
         anchor = best;
       }
       return out;
+    }
+
+    function shouldPreserveRoutePoint(p) {
+      const cell = state.cells[idx(p.i, p.j)];
+      const input = effectiveCellInputs(cell);
+      if (input.waterCrossing || input.road) return true;
+      if (input.hydroClass === "dem_stream" || input.hydroClass === "dem_drainage") return true;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ni = p.i + di;
+        const nj = p.j + dj;
+        if (!inGrid(ni, nj)) continue;
+        const near = state.cells[idx(ni, nj)];
+        const nearInput = effectiveCellInputs(near);
+        if (!Number.isFinite(near.cost)) return true;
+        if (nearInput.water && !nearInput.waterCrossing && !nearInput.road) return true;
+      }
+      return false;
     }
 
     function routeTrace(route) {
@@ -3243,17 +3281,42 @@
       const input = effectiveCellInputs(cell);
       let bonus = 0;
       if (input.waterCrossing) {
-        bonus += input.crossingStatus === "confirmed" ? 2.2 : 1.05;
+        bonus += input.crossingStatus === "confirmed" ? 3.4 : 1.75;
       }
       if (input.road) {
-        bonus += 0.36;
-        if (input.roadClass === "sam3_bridge") bonus += 1.3;
-        if (input.roadClass === "image_road") bonus += 0.25;
-        if (input.roadClass === "mountain_road") bonus += 0.18;
-        if (input.roadClass === "path" && state.vehicleKey === "person") bonus += 0.28;
+        bonus += 0.9;
+        if (input.roadClass === "sam3_bridge") bonus += 2.4;
+        if (input.roadClass === "image_road") bonus += 0.85;
+        if (input.roadClass === "mountain_road") bonus += 0.55;
+        if (input.roadClass === "path" && state.vehicleKey === "person") bonus += 0.62;
+        bonus += roadCorridorSupport(cell) * 1.05;
+      } else if (state.vehicleKey !== "person" && nearbyRoadSupport(cell) > 0.2) {
+        bonus -= 0.45;
       }
       if (input.hydroClass === "dem_stream" && !input.road && !input.waterCrossing) bonus -= 0.55;
       return bonus;
+    }
+
+    function roadCorridorSupport(cell) {
+      return nearbyRoadSupport(cell, true);
+    }
+
+    function nearbyRoadSupport(cell, weighted = false) {
+      let support = 0;
+      let total = 0;
+      for (let dj = -2; dj <= 2; dj++) {
+        for (let di = -2; di <= 2; di++) {
+          const i = cell.i + di;
+          const j = cell.j + dj;
+          if (!inGrid(i, j)) continue;
+          const dist = Math.hypot(di, dj);
+          const weight = weighted ? 1 / (1 + dist) : 1;
+          const input = effectiveCellInputs(state.cells[idx(i, j)]);
+          if (input.road || input.waterCrossing) support += weight;
+          total += weight;
+        }
+      }
+      return total > 0 ? support / total : 0;
     }
 
     function heuristic(a, b) {
