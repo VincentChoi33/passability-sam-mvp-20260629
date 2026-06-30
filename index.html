@@ -796,19 +796,26 @@
     }
 
     .marker {
-      border: 2px solid white;
+      display: grid;
+      place-items: center;
+      border: 3px solid currentColor;
       border-radius: 999px;
-      width: 18px;
-      height: 18px;
-      box-shadow: 0 0 0 3px rgba(0, 0, 0, .25);
+      width: 24px;
+      height: 24px;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, .28), 0 2px 8px rgba(0, 0, 0, .35);
+      color: #111418;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
     }
 
     .marker.start {
-      background: var(--cyan);
+      border-color: var(--cyan);
     }
 
     .marker.end {
-      background: #ff7c66;
+      border-color: #ff7c66;
     }
 
     @media (max-width: 820px) {
@@ -902,10 +909,11 @@
         <div class="control">
           <label for="aoiSizeSelect">관심영역 크기</label>
           <select id="aoiSizeSelect">
-            <option value="5" selected>5km x 5km · 25만 칸</option>
+            <option value="auto" selected>자동 · 경로 주변 최소</option>
+            <option value="5">5km x 5km · 25만 칸</option>
             <option value="10">10km x 10km · 100만 칸</option>
           </select>
-          <p class="note">10km는 더 넓게 보지만 10m 격자가 4배 늘어 계산이 느려질 수 있습니다. 변경값은 다음 경로 계산 때 적용됩니다.</p>
+          <p class="note">자동은 경로 후보를 감싸는 최소 정사각 ROI에 여유폭을 붙입니다. 10km는 더 넓게 보지만 계산이 느려질 수 있습니다.</p>
         </div>
         <div class="control">
           <label for="baseLayerSelect">배경지도</label>
@@ -1206,6 +1214,9 @@
     const DEFAULT_CENTER = { lat: 37.7338, lng: 127.4232 };
     const CELL_M = 10;
     const DEFAULT_AOI_SIZE_KM = 5;
+    const DEFAULT_AOI_SIZE_MODE = "auto";
+    const MIN_AUTO_AOI_SIZE_KM = 1.5;
+    const MAX_AOI_SIZE_KM = 10;
     let GRID_N = 500;
     let HALF_M = (GRID_N * CELL_M) / 2;
     const METERS_PER_LAT = 111320;
@@ -1333,7 +1344,8 @@
       speedOverrides: {},
       gridOpacity: 0.58,
       aoiSizeKm: DEFAULT_AOI_SIZE_KM,
-      pendingAoiSizeKm: null,
+      aoiSizeMode: DEFAULT_AOI_SIZE_MODE,
+      pendingAoiSizeMode: null,
       baseLayer: "imagery",
       analysisLayer: "passability",
       useVisionSegmentation: true,
@@ -1512,18 +1524,67 @@
     }
 
     function setAoiSizeKm(sizeKm) {
-      const normalized = sizeKm >= 10 ? 10 : 5;
+      const rounded = Math.ceil(Number(sizeKm || DEFAULT_AOI_SIZE_KM) * 2) / 2;
+      const normalized = clamp(rounded, MIN_AUTO_AOI_SIZE_KM, MAX_AOI_SIZE_KM);
       state.aoiSizeKm = normalized;
       GRID_N = Math.round((normalized * 1000) / CELL_M);
       HALF_M = (GRID_N * CELL_M) / 2;
     }
 
+    function activeAoiSizeMode() {
+      return state.pendingAoiSizeMode || state.aoiSizeMode || "5";
+    }
+
+    function routePlanBoundsSpanMeters(latLngs = state.roiPlanLatLngs) {
+      const points = [
+        ...(latLngs || []),
+        state.startLatLng,
+        state.endLatLng
+      ].filter(Boolean);
+      if (!points.length) return 0;
+      const bounds = points.reduce((acc, point) => ({
+        minLat: Math.min(acc.minLat, point.lat),
+        maxLat: Math.max(acc.maxLat, point.lat),
+        minLng: Math.min(acc.minLng, point.lng),
+        maxLng: Math.max(acc.maxLng, point.lng)
+      }), {
+        minLat: Infinity,
+        maxLat: -Infinity,
+        minLng: Infinity,
+        maxLng: -Infinity
+      });
+      const verticalM = geoDistanceMeters(
+        { lat: bounds.minLat, lng: bounds.minLng },
+        { lat: bounds.maxLat, lng: bounds.minLng }
+      );
+      const horizontalM = geoDistanceMeters(
+        { lat: bounds.minLat, lng: bounds.minLng },
+        { lat: bounds.minLat, lng: bounds.maxLng }
+      );
+      return Math.max(verticalM, horizontalM);
+    }
+
+    function autoAoiSizeKm() {
+      const spanM = routePlanBoundsSpanMeters();
+      const baseM = Math.min(Math.max(spanM, CELL_M * 20), MAX_AOI_SIZE_KM * 1000);
+      const marginM = clamp(baseM * 0.15 + 300, 350, 900);
+      return clamp(Math.ceil(((baseM + marginM * 2) / 1000) * 2) / 2, MIN_AUTO_AOI_SIZE_KM, MAX_AOI_SIZE_KM);
+    }
+
+    function resolveAoiSizeKm(mode = activeAoiSizeMode()) {
+      if (mode === "auto") return autoAoiSizeKm();
+      const numeric = Number(mode);
+      if (Number.isFinite(numeric)) return numeric;
+      return DEFAULT_AOI_SIZE_KM;
+    }
+
     function pendingAoiSizeKm() {
-      return state.pendingAoiSizeKm || state.aoiSizeKm;
+      return resolveAoiSizeKm();
     }
 
     function aoiSizeLabel(sizeKm = state.aoiSizeKm) {
-      return `${sizeKm.toFixed(0)}km x ${sizeKm.toFixed(0)}km`;
+      const label = Number.isInteger(sizeKm) ? sizeKm.toFixed(0) : sizeKm.toFixed(1);
+      return `${label}km x ${label}km`;
     }
 
     function aoiCellCountLabel(sizeKm = state.aoiSizeKm) {
@@ -1534,10 +1595,9 @@
     }
 
     function applyPendingAoiSize() {
-      if (!state.pendingAoiSizeKm) return;
-      setAoiSizeKm(state.pendingAoiSizeKm);
-      state.pendingAoiSizeKm = null;
-      if (el.aoiSizeSelect) el.aoiSizeSelect.value = String(state.aoiSizeKm);
+      setAoiSizeKm(resolveAoiSizeKm(state.aoiSizeMode));
+      state.pendingAoiSizeMode = null;
+      if (el.aoiSizeSelect) el.aoiSizeSelect.value = state.aoiSizeMode;
     }
 
     function setRoiPlanForCurrentEndpoints() {
@@ -3759,8 +3819,8 @@
     const crossingLayer = L.layerGroup().addTo(map);
     window.__routeMvpDebug.layers.crossingLayer = crossingLayer;
 
-    const startIcon = L.divIcon({ html: '<div class="marker start"></div>', className: "", iconSize: [18, 18], iconAnchor: [9, 9] });
-    const endIcon = L.divIcon({ html: '<div class="marker end"></div>', className: "", iconSize: [18, 18], iconAnchor: [9, 9] });
+    const startIcon = L.divIcon({ html: '<div class="marker start">S</div>', className: "", iconSize: [24, 24], iconAnchor: [12, 12] });
+    const endIcon = L.divIcon({ html: '<div class="marker end">D</div>', className: "", iconSize: [24, 24], iconAnchor: [12, 12] });
     const startMarker = L.marker(ijToLatLng(state.start.i, state.start.j), { icon: startIcon, draggable: true }).addTo(map);
     const endMarker = L.marker(ijToLatLng(state.end.i, state.end.j), { icon: endIcon, draggable: true }).addTo(map);
 
@@ -3880,13 +3940,14 @@
       gridLayer._draw();
     });
     el.aoiSizeSelect.addEventListener("change", event => {
-      const nextSize = Number(event.target.value);
-      state.pendingAoiSizeKm = nextSize >= 10 ? 10 : 5;
+      const nextMode = event.target.value === "10" ? "10" : event.target.value === "5" ? "5" : "auto";
+      state.aoiSizeMode = nextMode;
+      state.pendingAoiSizeMode = nextMode;
       state.endpointDirty = true;
       setRoiPlanForCurrentEndpoints();
       updateAoiChip();
       clearDisplayedRouteForEndpointChange();
-      el.dataStatus.textContent = `관심영역 ${aoiSizeLabel(state.pendingAoiSizeKm)} 적용 대기 · 경로 계산 필요`;
+      el.dataStatus.textContent = `관심영역 ${aoiSizeLabel(resolveAoiSizeKm(nextMode))} 적용 대기 · 경로 계산 필요`;
     });
     el.baseLayerSelect.addEventListener("change", event => {
       state.baseLayer = event.target.value;
@@ -5011,12 +5072,14 @@
       const sourceLabel = roiPlanSourceLabel();
       if (state.endpointDirty) {
         const nextSize = pendingAoiSizeKm();
+        const modeLabel = activeAoiSizeMode() === "auto" ? "자동 " : "";
         document.getElementById("aoiChip").textContent =
-          `경로 계산 대기 · 다음 ROI ${aoiSizeLabel(nextSize)} / ${aoiCellCountLabel(nextSize)} · 지정 거리 ${routeKm.toFixed(1)}km`;
+          `경로 계산 대기 · 다음 ROI ${modeLabel}${aoiSizeLabel(nextSize)} / ${aoiCellCountLabel(nextSize)} · 지정 거리 ${routeKm.toFixed(1)}km`;
         return;
       }
+      const modeLabel = state.aoiSizeMode === "auto" ? "자동 " : "";
       document.getElementById("aoiChip").textContent =
-        `관심영역: ${sourceLabel} 주변 ${aoiSizeLabel()} · ${aoiCellCountLabel()} · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${routeKm.toFixed(1)}km`;
+        `관심영역: ${sourceLabel} 주변 ${modeLabel}${aoiSizeLabel()} · ${aoiCellCountLabel()} · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${routeKm.toFixed(1)}km`;
     }
 
     async function rebuildAoi(reason = "rebuild") {
@@ -5095,7 +5158,7 @@
       setRoiPlan(directRoutePlanLatLngs(), "direct");
       setRouteInputValues();
       syncSpeedInputs();
-      el.aoiSizeSelect.value = String(state.aoiSizeKm);
+      el.aoiSizeSelect.value = state.aoiSizeMode;
       el.baseLayerSelect.value = state.baseLayer;
       el.analysisLayerSelect.value = state.analysisLayer;
       el.visionToggle.checked = state.useVisionSegmentation;
