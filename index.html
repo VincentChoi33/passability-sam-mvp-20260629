@@ -1007,14 +1007,13 @@
           <div class="google-route-box">
             <div class="google-route-head">
               <span>SAM3.1 ROI 추론</span>
-              <span id="samInferenceStatus" class="google-route-status">API 대기</span>
+              <span id="samInferenceStatus" class="google-route-status">서버 대기</span>
             </div>
             <div class="google-route-actions">
-              <button id="samInferenceBtn" type="button">현재 ROI 추론</button>
-              <button id="samApiBtn" type="button">API 저장</button>
+              <button id="samInferenceBtn" type="button">현재 ROI 재추론</button>
             </div>
           </div>
-          <p class="note">SAM3.1 영상분할은 ROI별로 새로 계산되어야 합니다. SAM API URL이 설정되어 있으면 ROI 계산 때 서버에 bbox/grid를 보내 새 segmentation grid를 받아오고, 없으면 재연산 필요로 표시합니다.</p>
+          <p class="note">SAM3.1 영상분할은 ROI별로 새로 계산되어야 합니다. 현재 ROI의 위성영상 bbox와 10m grid 조건을 develop 서버의 SAM3.1 추론에 보내고, 돌아온 segmentation grid로 통행성 판정을 다시 계산합니다.</p>
         </div>
       </section>
 
@@ -1547,6 +1546,7 @@
     const GOOGLE_KEY_STORAGE = "neotactic_google_maps_key";
     const NAVER_PROXY_STORAGE = "neotactic_naver_directions_proxy";
     const SAM_API_STORAGE = "neotactic_sam_roi_api";
+    const DEFAULT_SAM_INFERENCE_URL = "https://arg-founder-production-attended.trycloudflare.com/sam/roi";
     let googleLoadPromise = null;
 
     function installGoogleKeyFromUrl() {
@@ -1580,16 +1580,19 @@
 
     function installSamApiFromUrl() {
       const params = new URLSearchParams(window.location.search);
-      const suppliedApi = params.get("samApi") || params.get("samApiUrl");
+      const suppliedApi = params.get("samServer") || params.get("samServerUrl") || params.get("samApi") || params.get("samApiUrl");
       if (suppliedApi && suppliedApi.trim()) {
         localStorage.setItem(SAM_API_STORAGE, suppliedApi.trim());
+        params.delete("samServer");
+        params.delete("samServerUrl");
         params.delete("samApi");
         params.delete("samApiUrl");
         const nextQuery = params.toString();
         const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
         window.history.replaceState({}, "", nextUrl);
       }
-      state.samApiUrl = localStorage.getItem(SAM_API_STORAGE) || "";
+      const storedApi = localStorage.getItem(SAM_API_STORAGE);
+      state.samApiUrl = storedApi && storedApi.trim() ? storedApi.trim() : DEFAULT_SAM_INFERENCE_URL;
       updateSamInferenceStatus();
     }
 
@@ -1635,21 +1638,18 @@
     function updateSamInferenceStatus(message) {
       if (message) state.samInferenceStatus = message;
       const labels = {
-        idle: state.samApiUrl ? "API 연결 대기" : "API 대기",
+        idle: state.samApiUrl ? "서버 연결 대기" : "서버 대기",
         queued: "요청 전송",
-        running: "SAM 추론 중",
+        running: "SAM3.1 추론 중",
         polling: "결과 대기",
         ready: "ROI 판독 완료",
         reused: "기존 ROI 사용",
-        missing: "API 미설정",
+        missing: "서버 미설정",
         stale: "재추론 필요",
         error: "추론 실패"
       };
       if (el.samInferenceStatus) {
         el.samInferenceStatus.textContent = labels[state.samInferenceStatus] || state.samInferenceStatus;
-      }
-      if (el.samApiBtn) {
-        el.samApiBtn.textContent = state.samApiUrl ? "API 교체" : "API 저장";
       }
       if (el.samInferenceBtn) {
         el.samInferenceBtn.disabled = state.samInferenceBusy;
@@ -1798,7 +1798,7 @@
     }
 
     function promptForSamApi() {
-      const apiUrl = window.prompt("SAM3.1 ROI inference API URL을 입력하세요. 예: https://.../sam/roi", state.samApiUrl || "");
+      const apiUrl = window.prompt("SAM3.1 추론 서버 주소를 입력하세요. 기본값은 develop 서버입니다.", state.samApiUrl || DEFAULT_SAM_INFERENCE_URL);
       if (!apiUrl || !apiUrl.trim()) return "";
       state.samApiUrl = apiUrl.trim();
       localStorage.setItem(SAM_API_STORAGE, state.samApiUrl);
@@ -2947,7 +2947,7 @@
       const response = await fetch(url, { ...options, headers });
       const data = await response.json().catch(() => ({}));
       if (!response.ok && !data.statusUrl && !data.status_url) {
-        throw new Error(data.message || data.error || `SAM API ${response.status}`);
+        throw new Error(data.message || data.error || `SAM3.1 서버 ${response.status}`);
       }
       return { data, responseUrl: response.url || url };
     }
@@ -2965,7 +2965,7 @@
       }
 
       const statusUrl = data?.statusUrl || data?.status_url || data?.pollUrl || data?.poll_url;
-      if (!statusUrl) throw new Error("SAM API 응답에 segmentation grid 또는 statusUrl이 없습니다.");
+      if (!statusUrl) throw new Error("SAM3.1 서버 응답에 segmentation grid 또는 statusUrl이 없습니다.");
 
       const pollUrl = absoluteSamUrl(statusUrl, baseUrl);
       for (let attempt = 0; attempt < 180; attempt++) {
@@ -4309,7 +4309,7 @@
     el.googleRouteBtn.addEventListener("click", () => refreshGoogleRouteCandidates());
     el.naverProxyBtn.addEventListener("click", () => promptForNaverProxy());
     el.naverRouteBtn.addEventListener("click", () => refreshNaverRouteCandidates());
-    el.samApiBtn.addEventListener("click", () => promptForSamApi());
+    if (el.samApiBtn) el.samApiBtn.addEventListener("click", () => promptForSamApi());
     el.samInferenceBtn.addEventListener("click", () => refreshSamInferenceForCurrentAoi());
 
     function updateStampLabel() {
