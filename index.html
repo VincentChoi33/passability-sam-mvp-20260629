@@ -704,7 +704,7 @@
           </div>
           <div class="explain-block">
             <h3>경로가 나오는 방식</h3>
-            <p>A* 탐색으로 빨간 칸은 피하고, 초록/노랑 칸의 비용이 낮은 방향을 우선 선택합니다. 1안을 먼저 찾은 뒤, 그 주변 격자에 회피 벌점을 줘서 2안과 3안을 다시 찾습니다.</p>
+            <p>A* 탐색으로 빨간 칸은 피하고, 초록/노랑 칸의 비용이 낮은 방향을 우선 선택합니다. 교량/암거 crossing과 도로 중심은 비용을 낮춰 선호하고, 방향을 자주 바꾸면 벌점을 줘서 불필요한 지그재그를 줄입니다. 탐색 후에는 통과 가능한 직선 구간을 다시 검사해 경로선을 한 번 더 펴고, 1안을 먼저 찾은 뒤 주변 격자에 회피 벌점을 줘서 2안과 3안을 다시 찾습니다.</p>
           </div>
           <div class="explain-block">
             <h3>실시간 차단 반영</h3>
@@ -2441,6 +2441,7 @@
       maxZoom: 21
     }).setView([state.center.lat, state.center.lng], 14);
     window.__routeMvpDebug = { map, state };
+    window.__routeMvpDebug.routeTrace = route => routeTrace(route || state.route);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -3004,9 +3005,10 @@
         for (let attempt = 0; attempt < attempts; attempt++) {
           const strength = optionIndex === 0 ? 0 : 1.2 + optionIndex * 0.9 + attempt * 0.9;
           const penaltyMap = candidates.length ? buildRouteAvoidanceMap(candidates, strength) : null;
-          const route = aStar(routeStart, routeEnd, { penaltyMap });
-          if (!route.length) continue;
-          const overlap = maxRouteOverlap(route, candidates);
+          const rawRoute = aStar(routeStart, routeEnd, { penaltyMap });
+          if (!rawRoute.length) continue;
+          const route = smoothRoute(rawRoute);
+          const overlap = maxRouteOverlap(routeTrace(route), candidates.map(routeTrace));
           if (overlap < selectedOverlap) {
             selected = route;
             selectedOverlap = overlap;
@@ -3024,8 +3026,9 @@
       const penalties = new Float32Array(GRID_N * GRID_N);
       const radius = Math.round(4 + strength * 3);
       for (const route of routes) {
-        for (let n = 0; n < route.length; n += 2) {
-          const p = route[n];
+        const trace = routeTrace(route);
+        for (let n = 0; n < trace.length; n += 2) {
+          const p = trace[n];
           for (let dj = -radius; dj <= radius; dj++) {
             for (let di = -radius; di <= radius; di++) {
               const i = p.i + di;
@@ -3082,6 +3085,83 @@
       return null;
     }
 
+    function smoothRoute(route) {
+      if (route.length <= 2) return route;
+      const out = [route[0]];
+      let anchor = 0;
+      const maxSpan = 42;
+      while (anchor < route.length - 1) {
+        let best = anchor + 1;
+        const last = Math.min(route.length - 1, anchor + maxSpan);
+        for (let probe = last; probe > anchor + 1; probe--) {
+          if (segmentIsTraversable(route[anchor], route[probe])) {
+            best = probe;
+            break;
+          }
+        }
+        out.push(route[best]);
+        anchor = best;
+      }
+      return out;
+    }
+
+    function routeTrace(route) {
+      if (!route.length) return [];
+      const trace = [];
+      for (let n = 1; n < route.length; n++) {
+        const cells = cellsOnLine(route[n - 1], route[n]);
+        for (let k = 0; k < cells.length; k++) {
+          if (trace.length && k === 0) continue;
+          trace.push(cells[k]);
+        }
+      }
+      return trace.length ? trace : route.slice();
+    }
+
+    function cellsOnLine(a, b) {
+      let x0 = a.i, y0 = a.j;
+      const x1 = b.i, y1 = b.j;
+      const dx = Math.abs(x1 - x0);
+      const dy = Math.abs(y1 - y0);
+      const sx = x0 < x1 ? 1 : -1;
+      const sy = y0 < y1 ? 1 : -1;
+      let err = dx - dy;
+      const out = [];
+      let guard = 0;
+      while (guard++ < GRID_N * 2) {
+        out.push({ i: x0, j: y0 });
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) {
+          err -= dy;
+          x0 += sx;
+        }
+        if (e2 < dx) {
+          err += dx;
+          y0 += sy;
+        }
+      }
+      return out;
+    }
+
+    function segmentIsTraversable(a, b) {
+      const cells = cellsOnLine(a, b);
+      if (cells.length > 55) return false;
+      let totalCost = 0;
+      let waterRisk = 0;
+      for (const p of cells) {
+        if (!inGrid(p.i, p.j)) return false;
+        const cell = state.cells[idx(p.i, p.j)];
+        if (!Number.isFinite(cell.cost)) return false;
+        const input = effectiveCellInputs(cell);
+        if (input.water && !input.waterCrossing && !input.road) return false;
+        if (input.hydroClass === "dem_stream" && !input.waterCrossing && !input.road) waterRisk += 1;
+        totalCost += cell.cost;
+      }
+      const meanCost = totalCost / Math.max(1, cells.length);
+      return meanCost <= 11.5 && waterRisk <= Math.max(2, Math.floor(cells.length * 0.16));
+    }
+
     function aStar(start, end, options = {}) {
       const startIdx = idx(start.i, start.j);
       const endIdx = idx(end.i, end.j);
@@ -3118,9 +3198,12 @@
           if (closed[nk]) continue;
           const cell = state.cells[nk];
           if (!Number.isFinite(cell.cost)) continue;
-          const turnPenalty = di !== 0 && dj !== 0 ? 0.12 : 0;
+          if (di !== 0 && dj !== 0 && diagonalCornerBlocked(current.i, current.j, di, dj)) continue;
+          const diagonalPenalty = di !== 0 && dj !== 0 ? 0.1 : 0;
+          const directionPenalty = directionChangePenalty(current, came, di, dj);
           const routePenalty = penaltyMap ? penaltyMap[nk] : 0;
-          const stepCost = (cell.cost + routePenalty) * mult + turnPenalty;
+          const affinity = routeAffinity(cell);
+          const stepCost = Math.max(0.28, (cell.cost + routePenalty) * mult + diagonalPenalty + directionPenalty - affinity);
           const nextG = g[current.k] + stepCost;
           if (nextG < g[nk]) {
             came[nk] = current.k;
@@ -3130,6 +3213,47 @@
         }
       }
       return [];
+    }
+
+    function diagonalCornerBlocked(i, j, di, dj) {
+      const sideA = state.cells[idx(i + di, j)];
+      const sideB = state.cells[idx(i, j + dj)];
+      if (!Number.isFinite(sideA.cost) && !Number.isFinite(sideB.cost)) return true;
+      const aInput = effectiveCellInputs(sideA);
+      const bInput = effectiveCellInputs(sideB);
+      const aWaterBlock = aInput.water && !aInput.waterCrossing && !aInput.road;
+      const bWaterBlock = bInput.water && !bInput.waterCrossing && !bInput.road;
+      return aWaterBlock && bWaterBlock;
+    }
+
+    function directionChangePenalty(current, came, di, dj) {
+      const prevK = came[current.k];
+      if (prevK < 0) return 0;
+      const prevI = prevK % GRID_N;
+      const prevJ = Math.floor(prevK / GRID_N);
+      const prevDi = Math.sign(current.i - prevI);
+      const prevDj = Math.sign(current.j - prevJ);
+      if (prevDi === di && prevDj === dj) return 0;
+      if (prevDi === -di && prevDj === -dj) return 1.4;
+      const diagonalFlip = prevDi !== 0 && prevDj !== 0 && di !== 0 && dj !== 0 && (prevDi !== di || prevDj !== dj);
+      return diagonalFlip ? 0.72 : 0.42;
+    }
+
+    function routeAffinity(cell) {
+      const input = effectiveCellInputs(cell);
+      let bonus = 0;
+      if (input.waterCrossing) {
+        bonus += input.crossingStatus === "confirmed" ? 2.2 : 1.05;
+      }
+      if (input.road) {
+        bonus += 0.36;
+        if (input.roadClass === "sam3_bridge") bonus += 1.3;
+        if (input.roadClass === "image_road") bonus += 0.25;
+        if (input.roadClass === "mountain_road") bonus += 0.18;
+        if (input.roadClass === "path" && state.vehicleKey === "person") bonus += 0.28;
+      }
+      if (input.hydroClass === "dem_stream" && !input.road && !input.waterCrossing) bonus -= 0.55;
+      return bonus;
     }
 
     function heuristic(a, b) {
@@ -3152,28 +3276,29 @@
 
     function summarizeRoute(route) {
       const vehicle = vehicles[state.vehicleKey];
+      const trace = routeTrace(route);
       let dist = 0;
       let cost = 0;
       let minutes = 0;
       let caution = 0;
       const reasonCount = new Map();
-      for (let n = 0; n < route.length; n++) {
-        const p = route[n];
+      for (let n = 0; n < trace.length; n++) {
+        const p = trace[n];
         const cell = state.cells[idx(p.i, p.j)];
         cost += Number.isFinite(cell.cost) ? cell.cost : 0;
         if (cell.zone === "yellow" || cell.zone === "orange") caution += 1;
         cell.reasons.forEach(r => reasonCount.set(r, (reasonCount.get(r) || 0) + 1));
         if (n > 0) {
-          const prev = route[n - 1];
+          const prev = trace[n - 1];
           const stepM = Math.hypot(p.i - prev.i, p.j - prev.j) * CELL_M;
           dist += stepM;
           minutes += (stepM / 1000) / estimatedSpeedKph(cell, vehicle) * 60;
         }
       }
-      const meanCost = cost / route.length;
+      const meanCost = cost / Math.max(1, trace.length);
       const avgSpeed = minutes > 0 ? (dist / 1000) / (minutes / 60) : 0;
       const topReasons = [...reasonCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-      return { dist, cost, minutes, caution, meanCost, avgSpeed, topReasons };
+      return { dist, cost, minutes, caution, meanCost, avgSpeed, topReasons, traceLength: trace.length, waypointLength: route.length };
     }
 
     function updateRouteMetrics(route) {
@@ -3182,20 +3307,20 @@
       el.costMetric.textContent = formatDuration(summary.minutes);
       el.speedMetric.textContent = `${summary.avgSpeed.toFixed(1)} km/h`;
       el.difficultyMetric.textContent = `${summary.meanCost.toFixed(1)} ${difficultyLabel(summary.meanCost)}`;
-      el.yellowMetric.textContent = `${summary.caution}/${route.length}`;
+      el.yellowMetric.textContent = `${summary.caution}/${summary.traceLength}`;
       el.reasonBox.innerHTML = `
         <div class="reason-title">
           <span>경로 ${state.activeRouteIndex + 1}안 요약</span>
           <span>${vehicles[state.vehicleKey].label}</span>
         </div>
         <ul class="reason-list">
-          <li>격자 수: ${route.length}</li>
+          <li>표시점/검사격자: ${summary.waypointLength}/${summary.traceLength}</li>
           <li>거리: ${(summary.dist / 1000).toFixed(2)} km</li>
           <li>예상 이동시간: ${formatDuration(summary.minutes)}</li>
           <li>보정 평균속도: ${summary.avgSpeed.toFixed(1)} km/h</li>
           <li>난이도 점수: ${summary.meanCost.toFixed(1)} (${difficultyLabel(summary.meanCost)})</li>
           <li>입력 기준속도: 도로 ${currentSpeedSettings().roadKph.toFixed(0)} km/h / 비도로 ${currentSpeedSettings().offroadKph.toFixed(0)} km/h</li>
-          <li>주의 격자: ${summary.caution}/${route.length}</li>
+          <li>주의 격자: ${summary.caution}/${summary.traceLength}</li>
           <li>지정 차단 격자: ${state.manualBlocked.size}칸</li>
           <li>끝점 보정: ${state.endpointSnap.startM.toFixed(0)}m / ${state.endpointSnap.endM.toFixed(0)}m</li>
           ${summary.topReasons.map(([r, n]) => `<li>${escapeHtml(formatReason(r))} x ${n}</li>`).join("")}
