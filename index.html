@@ -900,6 +900,14 @@
           <p class="note">관심영역은 계산 범위이고, 표시 강도만 낮춰 배경지도를 더 잘 보이게 할 수 있습니다.</p>
         </div>
         <div class="control">
+          <label for="aoiSizeSelect">관심영역 크기</label>
+          <select id="aoiSizeSelect">
+            <option value="5" selected>5km x 5km · 25만 칸</option>
+            <option value="10">10km x 10km · 100만 칸</option>
+          </select>
+          <p class="note">10km는 더 넓게 보지만 10m 격자가 4배 늘어 계산이 느려질 수 있습니다. 변경값은 다음 경로 계산 때 적용됩니다.</p>
+        </div>
+        <div class="control">
           <label for="baseLayerSelect">배경지도</label>
           <select id="baseLayerSelect">
             <option value="osm">일반 지도</option>
@@ -1044,7 +1052,7 @@
           </div>
           <div class="explain-block">
             <h3>지도와 격자의 관계</h3>
-            <p>Leaflet은 배경지도와 화면 조작을 담당하고, 통행성 계산은 별도의 10m 격자에서 합니다. 출발지와 도착지를 잡으면 두 점의 중간 지점을 중심으로 5km x 5km 관심영역을 만들고, 그 안을 10m 단위 칸으로 나눕니다. 이후 각 격자 칸을 Leaflet 지도 좌표에 맞춰 반투명 색상으로 덮어 보여줍니다.</p>
+            <p>Leaflet은 배경지도와 화면 조작을 담당하고, 통행성 계산은 별도의 10m 격자에서 합니다. 출발지와 도착지를 잡으면 경로 후보를 중심으로 5km x 5km 또는 10km x 10km 관심영역을 만들고, 그 안을 10m 단위 칸으로 나눕니다. 이후 각 격자 칸을 Leaflet 지도 좌표에 맞춰 반투명 색상으로 덮어 보여줍니다.</p>
           </div>
           <div class="explain-block">
             <h3>영상/DEM 판독 MVP</h3>
@@ -1064,7 +1072,7 @@
           </div>
           <div class="explain-block">
             <h3>격자가 깔리는 이유</h3>
-            <p>관심영역을 10m 격자로 쪼개 각 칸마다 경사, 도로 여부, 수계, 건물, 지표분류, 강우 영향을 계산합니다. 이후 이동 주체별로 같은 칸도 다르게 평가합니다. 전국 단위는 10m 격자가 약 10억 칸 규모라 브라우저 한 화면 계산이 아니라 타일/캐시 서버 방식으로 나눠 처리해야 합니다.</p>
+            <p>관심영역을 10m 격자로 쪼개 각 칸마다 경사, 도로 여부, 수계, 건물, 지표분류, 강우 영향을 계산합니다. 5km x 5km는 25만 칸, 10km x 10km는 100만 칸입니다. 이후 이동 주체별로 같은 칸도 다르게 평가합니다. 전국 단위는 10m 격자가 약 10억 칸 규모라 브라우저 한 화면 계산이 아니라 타일/캐시 서버 방식으로 나눠 처리해야 합니다.</p>
           </div>
           <div class="explain-block">
             <h3>색상 판정</h3>
@@ -1185,7 +1193,7 @@
         <button id="routeBtn" class="route-recalc">경로 다시 계산</button>
       </div>
       <div class="topbar">
-        <div id="aoiChip" class="chip">관심영역: 5.0km x 5.0km, 10m 격자</div>
+        <div id="aoiChip" class="chip">관심영역: 5km x 5km, 10m 격자</div>
         <div id="modeChip" class="chip">모드: 조회</div>
       </div>
     </main>
@@ -1197,8 +1205,9 @@
   <script>
     const DEFAULT_CENTER = { lat: 37.7338, lng: 127.4232 };
     const CELL_M = 10;
-    const GRID_N = 500;
-    const HALF_M = (GRID_N * CELL_M) / 2;
+    const DEFAULT_AOI_SIZE_KM = 5;
+    let GRID_N = 500;
+    let HALF_M = (GRID_N * CELL_M) / 2;
     const METERS_PER_LAT = 111320;
     const MAP_MIN_ZOOM = 6;
     const MAP_MAX_ZOOM = 21;
@@ -1323,6 +1332,8 @@
       rainfall: 24,
       speedOverrides: {},
       gridOpacity: 0.58,
+      aoiSizeKm: DEFAULT_AOI_SIZE_KM,
+      pendingAoiSizeKm: null,
       baseLayer: "imagery",
       analysisLayer: "passability",
       useVisionSegmentation: true,
@@ -1382,6 +1393,7 @@
       rainValue: document.getElementById("rainValue"),
       gridOpacitySlider: document.getElementById("gridOpacitySlider"),
       gridOpacityValue: document.getElementById("gridOpacityValue"),
+      aoiSizeSelect: document.getElementById("aoiSizeSelect"),
       baseLayerSelect: document.getElementById("baseLayerSelect"),
       analysisLayerSelect: document.getElementById("analysisLayerSelect"),
       visionToggle: document.getElementById("visionToggle"),
@@ -1497,6 +1509,48 @@
         state.endLatLng.lat.toFixed(6),
         state.endLatLng.lng.toFixed(6)
       ].join(",");
+    }
+
+    function setAoiSizeKm(sizeKm) {
+      const normalized = sizeKm >= 10 ? 10 : 5;
+      state.aoiSizeKm = normalized;
+      GRID_N = Math.round((normalized * 1000) / CELL_M);
+      HALF_M = (GRID_N * CELL_M) / 2;
+    }
+
+    function pendingAoiSizeKm() {
+      return state.pendingAoiSizeKm || state.aoiSizeKm;
+    }
+
+    function aoiSizeLabel(sizeKm = state.aoiSizeKm) {
+      return `${sizeKm.toFixed(0)}km x ${sizeKm.toFixed(0)}km`;
+    }
+
+    function aoiCellCountLabel(sizeKm = state.aoiSizeKm) {
+      const n = Math.round((sizeKm * 1000) / CELL_M);
+      const cells = n * n;
+      if (cells >= 10000) return `${Math.round(cells / 10000)}만 칸`;
+      return `${cells}칸`;
+    }
+
+    function applyPendingAoiSize() {
+      if (!state.pendingAoiSizeKm) return;
+      setAoiSizeKm(state.pendingAoiSizeKm);
+      state.pendingAoiSizeKm = null;
+      if (el.aoiSizeSelect) el.aoiSizeSelect.value = String(state.aoiSizeKm);
+    }
+
+    function setRoiPlanForCurrentEndpoints() {
+      const endpointKey = currentEndpointKey();
+      if (state.naverRouteEndpointKey === endpointKey && state.naverRawRoutes.length) {
+        setRoiPlanFromRawRoutes(state.naverRawRoutes, "naver");
+        return;
+      }
+      if (state.googleRouteEndpointKey === endpointKey && state.googleRawRoutes.length) {
+        setRoiPlanFromRawRoutes(state.googleRawRoutes, "google");
+        return;
+      }
+      setRoiPlan(directRoutePlanLatLngs(), "direct");
     }
 
     function clearGoogleRouteCandidates(markStale = false) {
@@ -2604,6 +2658,10 @@
     function samDatasetMatchesCurrentAoi() {
       const center = state.samDataset?.meta?.center;
       if (!center) return false;
+      const grid = state.samDataset?.meta?.grid;
+      const meters = state.samDataset?.meta?.meters;
+      if (grid && (Number(grid.n) !== GRID_N || Number(grid.cellM) !== CELL_M)) return false;
+      if (meters && Math.abs(Number(meters.width) - GRID_N * CELL_M) > CELL_M) return false;
       return Math.abs(center.lat - state.center.lat) < 0.002 &&
         Math.abs(center.lng - state.center.lng) < 0.002;
     }
@@ -3821,6 +3879,15 @@
       el.gridOpacityValue.textContent = String(Math.round(state.gridOpacity * 100));
       gridLayer._draw();
     });
+    el.aoiSizeSelect.addEventListener("change", event => {
+      const nextSize = Number(event.target.value);
+      state.pendingAoiSizeKm = nextSize >= 10 ? 10 : 5;
+      state.endpointDirty = true;
+      setRoiPlanForCurrentEndpoints();
+      updateAoiChip();
+      clearDisplayedRouteForEndpointChange();
+      el.dataStatus.textContent = `관심영역 ${aoiSizeLabel(state.pendingAoiSizeKm)} 적용 대기 · 경로 계산 필요`;
+    });
     el.baseLayerSelect.addEventListener("change", event => {
       state.baseLayer = event.target.value;
       syncBaseLayer();
@@ -3837,7 +3904,7 @@
     });
     el.routeBtn.addEventListener("click", async () => {
       if (state.endpointDirty) {
-        setRoiPlan(directRoutePlanLatLngs(), "direct");
+        setRoiPlanForCurrentEndpoints();
         await rebuildAoi("manual_endpoint_route");
         return;
       }
@@ -4943,12 +5010,13 @@
           : 0;
       const sourceLabel = roiPlanSourceLabel();
       if (state.endpointDirty) {
+        const nextSize = pendingAoiSizeKm();
         document.getElementById("aoiChip").textContent =
-          `경로 계산 대기 · 지정 거리 ${routeKm.toFixed(1)}km · ROI는 계산 시 갱신`;
+          `경로 계산 대기 · 다음 ROI ${aoiSizeLabel(nextSize)} / ${aoiCellCountLabel(nextSize)} · 지정 거리 ${routeKm.toFixed(1)}km`;
         return;
       }
       document.getElementById("aoiChip").textContent =
-        `관심영역: ${sourceLabel} 주변 5.0km x 5.0km · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${routeKm.toFixed(1)}km`;
+        `관심영역: ${sourceLabel} 주변 ${aoiSizeLabel()} · ${aoiCellCountLabel()} · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${routeKm.toFixed(1)}km`;
     }
 
     async function rebuildAoi(reason = "rebuild") {
@@ -4958,6 +5026,7 @@
       }
       state.rebuilding = true;
       state.pendingRebuild = false;
+      applyPendingAoiSize();
       el.dataStatus.textContent = `${roiPlanSourceLabel()} 기준 ROI 계산`;
 
       updateAoiCenterFromRoutePlan();
@@ -5021,10 +5090,12 @@
     async function boot() {
       installGoogleKeyFromUrl();
       installNaverProxyFromUrl();
+      setAoiSizeKm(state.aoiSizeKm);
       syncEndpointLatLngsFromCells();
       setRoiPlan(directRoutePlanLatLngs(), "direct");
       setRouteInputValues();
       syncSpeedInputs();
+      el.aoiSizeSelect.value = String(state.aoiSizeKm);
       el.baseLayerSelect.value = state.baseLayer;
       el.analysisLayerSelect.value = state.analysisLayer;
       el.visionToggle.checked = state.useVisionSegmentation;
