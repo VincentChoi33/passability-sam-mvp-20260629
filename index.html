@@ -49,28 +49,38 @@
     .app {
       height: 100%;
       display: grid;
-      grid-template-columns: 340px minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
       overflow: hidden;
     }
 
     .sidebar {
+      position: relative;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 66px;
       background: linear-gradient(180deg, #171b21 0%, #13171c 100%);
-      border-right: 1px solid var(--line);
-      padding: 16px;
-      overflow: auto;
+      border-bottom: 1px solid var(--line);
+      padding: 9px 12px;
+      overflow: visible;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .28);
     }
 
     .brand {
+      flex: 0 0 330px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 14px;
+      margin: 0;
+      padding-right: 10px;
+      border-right: 1px solid #2a333d;
     }
 
     .brand h1 {
       margin: 0;
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1.15;
       font-weight: 720;
     }
@@ -99,9 +109,11 @@
     }
 
     .section {
-      border-top: 1px solid var(--line);
-      padding-top: 14px;
-      margin-top: 14px;
+      position: relative;
+      flex: 0 0 auto;
+      border-top: 0;
+      padding-top: 0;
+      margin-top: 0;
     }
 
     .section:first-of-type {
@@ -110,12 +122,82 @@
     }
 
     .section h2 {
-      margin: 0 0 10px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      border: 1px solid #35404b;
+      border-radius: 6px;
+      background: #1d242d;
       color: #dce5ea;
+      padding: 0 12px;
       font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
+      text-transform: none;
+      letter-spacing: 0;
       font-weight: 750;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section h2::after {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 1.5px solid #91a4b3;
+      border-bottom: 1.5px solid #91a4b3;
+      transform: rotate(45deg) translateY(-2px);
+      margin-left: 2px;
+    }
+
+    .section.open h2,
+    .section:hover h2,
+    .section:focus-within h2 {
+      border-color: #527aa8;
+      background: #203148;
+      color: #ffffff;
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 950;
+      display: none;
+      width: 340px;
+      max-height: calc(100vh - 98px);
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid #384552;
+      border-radius: 8px;
+      background: rgba(16, 21, 27, .96);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+    }
+
+    .section.open .menu-panel,
+    .section:hover .menu-panel,
+    .section:focus-within .menu-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .section:nth-of-type(2) .menu-panel {
+      width: 560px;
+    }
+
+    .section:nth-of-type(3) .menu-panel {
+      width: 320px;
+    }
+
+    .section:nth-of-type(4) .menu-panel {
+      width: 410px;
+    }
+
+    .section:nth-of-type(5) .menu-panel {
+      width: min(620px, calc(100vw - 24px));
+      max-height: calc(100vh - 108px);
     }
 
     .control {
@@ -441,18 +523,31 @@
 
     @media (max-width: 820px) {
       .app {
-        grid-template-columns: 1fr;
-        grid-template-rows: 46% 54%;
+        grid-template-rows: auto minmax(0, 1fr);
       }
 
       .sidebar {
-        order: 2;
-        border-right: 0;
-        border-top: 1px solid var(--line);
+        align-items: flex-start;
+        flex-wrap: wrap;
+        min-height: 0;
+        max-height: 42vh;
+        overflow-y: auto;
       }
 
-      .map-wrap {
-        order: 1;
+      .brand {
+        flex: 1 1 100%;
+        border-right: 0;
+        border-bottom: 1px solid #2a333d;
+        padding: 0 0 8px;
+      }
+
+      .menu-panel {
+        position: fixed;
+        top: 78px;
+        left: 8px;
+        right: 8px;
+        width: auto !important;
+        max-height: calc(100vh - 96px);
       }
     }
   </style>
@@ -918,6 +1013,53 @@
       roadSpeedInput: document.getElementById("roadSpeedInput"),
       offroadSpeedInput: document.getElementById("offroadSpeedInput")
     };
+
+    setupTopMenus();
+
+    function setupTopMenus() {
+      const sidebar = document.querySelector(".sidebar");
+      const sections = [...document.querySelectorAll(".sidebar .section")];
+      for (const section of sections) {
+        const heading = section.querySelector("h2");
+        if (!heading || section.querySelector(".menu-panel")) continue;
+        const panel = document.createElement("div");
+        panel.className = "menu-panel";
+        while (heading.nextSibling) {
+          panel.appendChild(heading.nextSibling);
+        }
+        section.appendChild(panel);
+        heading.setAttribute("role", "button");
+        heading.setAttribute("tabindex", "0");
+        heading.setAttribute("aria-expanded", "false");
+        heading.addEventListener("click", event => {
+          event.stopPropagation();
+          const willOpen = !section.classList.contains("open");
+          closeTopMenus(sections);
+          section.classList.toggle("open", willOpen);
+          heading.setAttribute("aria-expanded", String(willOpen));
+        });
+        heading.addEventListener("keydown", event => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          heading.click();
+        });
+      }
+      document.addEventListener("click", event => {
+        if (sidebar && sidebar.contains(event.target)) return;
+        closeTopMenus(sections);
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeTopMenus(sections);
+      });
+    }
+
+    function closeTopMenus(sections) {
+      for (const section of sections) {
+        section.classList.remove("open");
+        const heading = section.querySelector("h2");
+        if (heading) heading.setAttribute("aria-expanded", "false");
+      }
+    }
 
     function metersPerLng() {
       return METERS_PER_LAT * Math.cos(state.center.lat * Math.PI / 180);
