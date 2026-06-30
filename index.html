@@ -152,8 +152,8 @@
     }
 
     .section.open h2,
-    .section:hover h2,
-    .section:focus-within h2 {
+    .section h2:hover,
+    .section h2:focus-visible {
       border-color: #527aa8;
       background: #203148;
       color: #ffffff;
@@ -176,9 +176,7 @@
       box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
     }
 
-    .section.open .menu-panel,
-    .section:hover .menu-panel,
-    .section:focus-within .menu-panel {
+    .section.open .menu-panel {
       display: grid;
       gap: 10px;
     }
