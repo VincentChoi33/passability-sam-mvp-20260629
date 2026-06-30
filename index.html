@@ -1355,9 +1355,6 @@
       nextStampId: 1,
       manualBlockReason: "restricted",
       stampSize: 3,
-      drawingStamp: null,
-      stampPreviewLayer: null,
-      suppressNextMapClick: false,
       start: { i: 155, j: 339 },
       end: { i: 347, j: 161 },
       startLatLng: null,
@@ -3723,36 +3720,7 @@
     startMarker.on("dragend", () => snapMarker(startMarker, "start"));
     endMarker.on("dragend", () => snapMarker(endMarker, "end"));
 
-    map.on("mousedown", event => {
-      if (state.mode !== "block") return;
-      state.drawingStamp = {
-        startLatLng: event.latlng,
-        startPoint: map.latLngToContainerPoint(event.latlng),
-        moved: false
-      };
-      map.dragging.disable();
-      updateStampPreview(event.latlng);
-    });
-
-    map.on("mousemove", event => {
-      if (!state.drawingStamp) return;
-      const point = map.latLngToContainerPoint(event.latlng);
-      if (point.distanceTo(state.drawingStamp.startPoint) > 6) {
-        state.drawingStamp.moved = true;
-      }
-      updateStampPreview(event.latlng);
-    });
-
-    map.on("mouseup", event => {
-      if (!state.drawingStamp) return;
-      commitStampDraw(event.latlng);
-    });
-
     map.on("click", event => {
-      if (state.suppressNextMapClick) {
-        state.suppressNextMapClick = false;
-        return;
-      }
       const p = xyToIJ(lngToX(event.latlng.lng), latToY(event.latlng.lat));
       if (state.mode === "start") {
         setEndpoint("start", event.latlng);
@@ -3862,61 +3830,6 @@
 
     function defaultStampBoundsAtCell(centerI, centerJ) {
       return gridBoundsFromCellWindow(centerI, centerJ, state.stampSize);
-    }
-
-    function previewBoundsForLatLng(latLng) {
-      if (!state.drawingStamp || state.drawingStamp.moved) {
-        return L.latLngBounds(state.drawingStamp.startLatLng, latLng);
-      }
-      const p = latLngToIJ(latLng);
-      return stampToLatLngBounds(geoBoundsFromGridBounds(defaultStampBoundsAtCell(p.i, p.j)));
-    }
-
-    function updateStampPreview(latLng) {
-      if (!state.drawingStamp) return;
-      const bounds = previewBoundsForLatLng(latLng);
-      if (!state.stampPreviewLayer) {
-        state.stampPreviewLayer = L.rectangle(bounds, {
-          color: "#050608",
-          weight: 2,
-          opacity: 0.95,
-          fillColor: "#050608",
-          fillOpacity: 0.34,
-          interactive: false
-        }).addTo(map);
-      } else {
-        state.stampPreviewLayer.setBounds(bounds);
-      }
-    }
-
-    function clearStampPreview() {
-      if (state.stampPreviewLayer) {
-        state.stampPreviewLayer.remove();
-        state.stampPreviewLayer = null;
-      }
-      state.drawingStamp = null;
-      if (!map.dragging.enabled()) map.dragging.enable();
-    }
-
-    function commitStampDraw(latLng) {
-      if (!state.drawingStamp) return;
-      const gridBounds = state.drawingStamp.moved
-        ? gridBoundsFromLatLngBounds(previewBoundsForLatLng(latLng))
-        : defaultStampBoundsAtCell(latLngToIJ(latLng).i, latLngToIJ(latLng).j);
-      clearStampPreview();
-      suppressUpcomingMapClick();
-      if (!gridBounds) return;
-      addManualStamp(gridBounds, `manual_block_${state.manualBlockReason}`);
-      const centerI = Math.round((gridBounds.minI + gridBounds.maxI) / 2);
-      const centerJ = Math.round((gridBounds.minJ + gridBounds.maxJ) / 2);
-      showCellReason(centerI, centerJ);
-    }
-
-    function suppressUpcomingMapClick() {
-      state.suppressNextMapClick = true;
-      window.setTimeout(() => {
-        state.suppressNextMapClick = false;
-      }, 250);
     }
 
     function applyManualBlock(centerI, centerJ, shouldBlock) {
