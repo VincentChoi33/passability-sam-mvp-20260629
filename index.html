@@ -565,6 +565,71 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
     }
 
+    .route-busy {
+      position: absolute;
+      inset: 0;
+      z-index: 620;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .12s ease;
+    }
+
+    .route-busy.visible {
+      opacity: 1;
+    }
+
+    .route-busy[hidden] {
+      display: none;
+    }
+
+    .route-busy-panel {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 260px;
+      max-width: min(420px, calc(100vw - 32px));
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 8px;
+      background: rgba(15, 20, 26, .9);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, .42);
+      padding: 14px 16px;
+    }
+
+    .route-spinner {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 3px solid rgba(101, 167, 255, .24);
+      border-top-color: var(--blue);
+      animation: route-spin .8s linear infinite;
+      flex: 0 0 auto;
+    }
+
+    .route-busy-text {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .route-busy-text strong {
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 820;
+    }
+
+    .route-busy-text span {
+      color: #aebdca;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    @keyframes route-spin {
+      to { transform: rotate(360deg); }
+    }
+
     .route-card {
       position: absolute;
       top: 12px;
@@ -780,6 +845,11 @@
       text-align: center;
       background: #173457;
       border-color: #4272a6;
+    }
+
+    .route-card .route-recalc.is-loading {
+      background: #102744;
+      color: #b7d4ff;
     }
 
     .leaflet-container {
@@ -1131,6 +1201,15 @@
     <main class="map-wrap">
       <div id="naverMapBase" aria-hidden="true"></div>
       <div id="map"></div>
+      <div id="routeBusy" class="route-busy" hidden aria-live="polite" aria-busy="true">
+        <div class="route-busy-panel">
+          <span class="route-spinner" aria-hidden="true"></span>
+          <div class="route-busy-text">
+            <strong>최적경로 탐색중</strong>
+            <span id="routeBusyDetail">10m 격자 비용맵에서 후보 경로를 계산 중입니다.</span>
+          </div>
+        </div>
+      </div>
       <div class="route-card" aria-label="경로 지정">
         <div class="route-card-row">
           <span class="route-dot start-dot">출</span>
@@ -1388,6 +1467,9 @@
       endpointDirty: false,
       rebuilding: false,
       pendingRebuild: false,
+      routeSearchBusy: false,
+      pendingRouteSearch: false,
+      routeSearchPreviousStatus: "",
       roiPlanLatLngs: [],
       roiPlanSource: "direct",
       roiPlanDistanceM: 0,
@@ -1399,6 +1481,8 @@
     const el = {
       mapWrap: document.querySelector(".map-wrap"),
       naverMapBase: document.getElementById("naverMapBase"),
+      routeBusy: document.getElementById("routeBusy"),
+      routeBusyDetail: document.getElementById("routeBusyDetail"),
       dataStatus: document.getElementById("dataStatus"),
       modeChip: document.getElementById("modeChip"),
       vehicleSelect: document.getElementById("vehicleSelect"),
@@ -1916,7 +2000,7 @@
         state.naverRouteCandidates = [];
         state.naverRouteEndpointKey = "";
         updateNaverRouteStatus("error");
-        recomputeRoute();
+        await recomputeRoute();
       }
     }
 
@@ -2016,7 +2100,7 @@
         state.googleRouteCandidates = [];
         state.googleRouteEndpointKey = "";
         updateGoogleRouteStatus("error");
-        recomputeRoute();
+        await recomputeRoute();
       }
     }
 
@@ -3993,7 +4077,7 @@
         await rebuildAoi("manual_endpoint_route");
         return;
       }
-      recomputeRoute();
+      await recomputeRoute();
     });
     el.googleKeyBtn.addEventListener("click", async () => {
       if (!promptForGoogleKey()) return;
@@ -4031,7 +4115,7 @@
       });
       state.nextStampId += 1;
       classifyCells();
-      recomputeRoute();
+      recomputeRoute("최적경로 탐색중 · 지정구역 반영");
       gridLayer._draw();
       const widthCells = gridBounds.maxI - gridBounds.minI + 1;
       const heightCells = gridBounds.maxJ - gridBounds.minJ + 1;
@@ -4050,7 +4134,7 @@
       state.manualStamps = state.manualStamps.filter(stamp => stamp.id !== manualBlock.stampId);
       if (state.manualStamps.length === before) return;
       classifyCells();
-      recomputeRoute();
+      recomputeRoute("최적경로 탐색중 · 지정구역 반영");
       gridLayer._draw();
       showCellReason(i, j);
       el.dataStatus.textContent = `지정구역 삭제 · 남은 ${state.manualStamps.length}개`;
@@ -4061,7 +4145,7 @@
       state.manualStamps = [];
       state.manualBlocked.clear();
       classifyCells();
-      recomputeRoute();
+      recomputeRoute("최적경로 탐색중 · 지정구역 반영");
       gridLayer._draw();
       el.dataStatus.textContent = "지정구역 초기화";
     }
@@ -4359,11 +4443,65 @@
       return merged.slice(0, 3);
     }
 
-    function recomputeRoute() {
+    function nextFrame() {
+      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    function setRouteSearchBusy(active, detail = "10m 격자 비용맵에서 후보 경로를 계산 중입니다.") {
+      state.routeSearchBusy = active;
+      if (active) state.routeSearchPreviousStatus = el.dataStatus.textContent || "";
+      if (el.routeBusy) {
+        el.routeBusy.hidden = !active;
+        el.routeBusy.classList.toggle("visible", active);
+      }
+      if (el.routeBusyDetail) el.routeBusyDetail.textContent = detail;
+      el.routeBtn.disabled = active;
+      el.routeBtn.classList.toggle("is-loading", active);
+      el.routeBtn.textContent = active ? "최적경로 탐색중" : "경로 다시 계산";
+      el.routeOptionButtons.forEach(button => {
+        if (active) button.disabled = true;
+      });
+      if (active) el.dataStatus.textContent = "최적경로 탐색중";
+    }
+
+    async function recomputeRoute(detail) {
       if (state.endpointDirty) {
         clearDisplayedRouteForEndpointChange();
         return;
       }
+      if (state.routeSearchBusy) {
+        state.pendingRouteSearch = true;
+        return;
+      }
+      setRouteSearchBusy(true, detail);
+      await nextFrame();
+      let completed = false;
+      try {
+        recomputeRouteNow();
+        completed = true;
+      } finally {
+        setRouteSearchBusy(false);
+        updateRouteOptionButtons();
+        if (completed && !state.endpointDirty) {
+          const doneText = state.routeCandidates.length
+            ? `경로 계산 완료 · 후보 ${state.routeCandidates.length}개`
+            : "경로 없음";
+          const prior = (state.routeSearchPreviousStatus || "")
+            .replace(/\s*·\s*경로 계산 완료\s*·\s*후보\s*\d+개/g, "")
+            .replace(/\s*·\s*경로 없음/g, "");
+          el.dataStatus.textContent = prior && prior !== "최적경로 탐색중"
+            ? `${prior} · ${doneText}`
+            : doneText;
+          state.routeSearchPreviousStatus = "";
+        }
+        if (state.pendingRouteSearch) {
+          state.pendingRouteSearch = false;
+          recomputeRoute(detail);
+        }
+      }
+    }
+
+    function recomputeRouteNow() {
       const routeStart = nearestPassableCell(state.start, 12);
       const routeEnd = nearestPassableCell(state.end, 12);
       if (!routeStart || !routeEnd) {
@@ -5170,7 +5308,7 @@
       } else if (samRecomputeNeeded()) {
         el.dataStatus.textContent = `${el.dataStatus.textContent} · SAM3.1 ROI 재연산 필요`;
       }
-      recomputeRoute();
+      await recomputeRoute("최적경로 탐색중 · ROI 판정 완료");
       gridLayer._draw();
       showCellReason(Math.floor(GRID_N / 2), Math.floor(GRID_N / 2));
       state.rebuilding = false;
