@@ -569,6 +569,73 @@
       font-weight: 650;
     }
 
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    .vehicle-compare {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      overflow: hidden;
+      border: 1px solid #34404b;
+      border-radius: 8px;
+      background: #10151b;
+    }
+
+    .vehicle-mode {
+      min-width: 0;
+      height: 58px !important;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 3px;
+      border: 0;
+      border-right: 1px solid #2d3742;
+      border-radius: 0;
+      background: transparent;
+      padding: 0 4px !important;
+      text-align: center !important;
+      line-height: 1.1;
+    }
+
+    .vehicle-mode:last-child {
+      border-right: 0;
+    }
+
+    .vehicle-mode:hover {
+      background: #18212a;
+    }
+
+    .vehicle-mode.active {
+      background: #1476e8;
+      border-color: #1476e8;
+    }
+
+    .vehicle-mode .mode-name {
+      color: #dce6ee;
+      font-size: 11px;
+      font-weight: 780;
+    }
+
+    .vehicle-mode .mode-time {
+      color: #95a6b4;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .vehicle-mode.active .mode-name,
+    .vehicle-mode.active .mode-time {
+      color: #ffffff;
+    }
+
     .route-card .route-recalc {
       text-align: center;
       background: #173457;
@@ -912,16 +979,38 @@
           <span class="route-dot end-dot">도</span>
           <button id="endModeBtn">도착지 지정</button>
         </div>
-        <label class="vehicle-strip" for="vehicleSelect">
-          <span>이동 주체</span>
-          <select id="vehicleSelect">
+        <div class="vehicle-strip">
+          <span>이동 주체별 예상시간</span>
+          <select id="vehicleSelect" class="visually-hidden" aria-label="이동 주체">
             <option value="person">도보 인원</option>
             <option value="atv">ATV / 오토바이</option>
             <option value="light">소형 4x4 차량</option>
             <option value="heavy">대형 트럭</option>
             <option value="tracked">궤도형 지원차량</option>
           </select>
-        </label>
+          <div id="vehicleCompare" class="vehicle-compare" aria-label="이동 주체별 예상시간">
+            <button class="vehicle-mode active" type="button" data-vehicle-key="person">
+              <span class="mode-name">도보</span>
+              <span class="mode-time">-</span>
+            </button>
+            <button class="vehicle-mode" type="button" data-vehicle-key="atv">
+              <span class="mode-name">ATV</span>
+              <span class="mode-time">-</span>
+            </button>
+            <button class="vehicle-mode" type="button" data-vehicle-key="light">
+              <span class="mode-name">4x4</span>
+              <span class="mode-time">-</span>
+            </button>
+            <button class="vehicle-mode" type="button" data-vehicle-key="heavy">
+              <span class="mode-name">트럭</span>
+              <span class="mode-time">-</span>
+            </button>
+            <button class="vehicle-mode" type="button" data-vehicle-key="tracked">
+              <span class="mode-name">궤도</span>
+              <span class="mode-time">-</span>
+            </button>
+          </div>
+        </div>
         <button id="routeBtn" class="route-recalc">경로 다시 계산</button>
       </div>
       <div class="topbar">
@@ -1119,7 +1208,8 @@
       yellowMetric: document.getElementById("yellowMetric"),
       redMetric: document.getElementById("redMetric"),
       roadSpeedInput: document.getElementById("roadSpeedInput"),
-      offroadSpeedInput: document.getElementById("offroadSpeedInput")
+      offroadSpeedInput: document.getElementById("offroadSpeedInput"),
+      vehicleCompareButtons: [...document.querySelectorAll("[data-vehicle-key]")]
     };
 
     setupTopMenus();
@@ -2317,8 +2407,13 @@
     }
 
     function currentSpeedSettings() {
-      const vehicle = vehicles[state.vehicleKey];
-      const override = state.speedOverrides[state.vehicleKey] || {};
+      return speedSettingsForVehicle(state.vehicleKey);
+    }
+
+    function speedSettingsForVehicle(vehicleKey) {
+      const vehicle = vehicles[vehicleKey];
+      if (!vehicle) return { roadKph: 1, offroadKph: 1 };
+      const override = state.speedOverrides[vehicleKey] || {};
       return {
         roadKph: clamp(Number(override.roadKph ?? vehicle.roadKph), 1, 120),
         offroadKph: clamp(Number(override.offroadKph ?? vehicle.offroadKph), 1, 80)
@@ -2360,7 +2455,10 @@
     }
 
     function estimatedSpeedKph(cell, vehicle) {
-      const speeds = currentSpeedSettings();
+      return estimatedSpeedKphWithSettings(cell, vehicle, currentSpeedSettings());
+    }
+
+    function estimatedSpeedKphWithSettings(cell, vehicle, speeds) {
       const input = effectiveCellInputs(cell);
       const base = input.road
         ? speeds.roadKph * roadSpeedFactor(input.roadClass)
@@ -2817,6 +2915,14 @@
         updateRouteOptionButtons();
       });
     });
+    el.vehicleCompareButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        const vehicleKey = button.dataset.vehicleKey;
+        if (!vehicles[vehicleKey] || vehicleKey === state.vehicleKey) return;
+        el.vehicleSelect.value = vehicleKey;
+        el.vehicleSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
     el.vehicleSelect.addEventListener("change", event => {
       state.vehicleKey = event.target.value;
       syncSpeedInputs();
@@ -3207,6 +3313,7 @@
     }
 
     function setRouteMetricsUnavailable(distanceLabel) {
+      updateVehicleCompare([]);
       el.distanceMetric.textContent = distanceLabel;
       el.costMetric.textContent = "-";
       el.speedMetric.textContent = "-";
@@ -3717,8 +3824,39 @@
       return { dist, cost, minutes, caution, meanCost, avgSpeed, topReasons, traceLength: trace.length, waypointLength: route.length };
     }
 
+    function summarizeRouteTimeForVehicle(route, vehicleKey) {
+      const vehicle = vehicles[vehicleKey];
+      if (!vehicle || !route.length) return { minutes: Infinity, avgSpeed: 0 };
+      const speeds = speedSettingsForVehicle(vehicleKey);
+      const trace = routeTrace(route);
+      let dist = 0;
+      let minutes = 0;
+      for (let n = 1; n < trace.length; n++) {
+        const p = trace[n];
+        const prev = trace[n - 1];
+        const cell = state.cells[idx(p.i, p.j)];
+        const stepM = Math.hypot(p.i - prev.i, p.j - prev.j) * CELL_M;
+        dist += stepM;
+        minutes += (stepM / 1000) / estimatedSpeedKphWithSettings(cell, vehicle, speeds) * 60;
+      }
+      const avgSpeed = minutes > 0 ? (dist / 1000) / (minutes / 60) : 0;
+      return { minutes, avgSpeed };
+    }
+
+    function updateVehicleCompare(route) {
+      for (const button of el.vehicleCompareButtons) {
+        const vehicleKey = button.dataset.vehicleKey;
+        const summary = summarizeRouteTimeForVehicle(route || [], vehicleKey);
+        const timeEl = button.querySelector(".mode-time");
+        if (timeEl) timeEl.textContent = Number.isFinite(summary.minutes) ? formatDuration(summary.minutes) : "-";
+        button.classList.toggle("active", vehicleKey === state.vehicleKey);
+        button.setAttribute("aria-pressed", String(vehicleKey === state.vehicleKey));
+      }
+    }
+
     function updateRouteMetrics(route) {
       const summary = summarizeRoute(route);
+      updateVehicleCompare(route);
       el.distanceMetric.textContent = `${(summary.dist / 1000).toFixed(2)} km`;
       el.costMetric.textContent = formatDuration(summary.minutes);
       el.speedMetric.textContent = `${summary.avgSpeed.toFixed(1)} km/h`;
