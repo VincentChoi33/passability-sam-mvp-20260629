@@ -986,9 +986,9 @@
         <div class="control">
           <label for="baseLayerSelect">배경지도</label>
           <select id="baseLayerSelect">
+            <option value="naver" selected>네이버 위성지도</option>
             <option value="osm">일반 지도</option>
-            <option value="imagery" selected>위성사진 샘플</option>
-            <option value="naver">네이버 지도</option>
+            <option value="imagery">외부 위성사진 백업</option>
           </select>
           <label for="analysisLayerSelect">판독 레이어</label>
           <select id="analysisLayerSelect">
@@ -1129,7 +1129,7 @@
           </div>
           <div class="explain-block">
             <h3>위성사진 타일</h3>
-            <p>위성사진 샘플 배경은 같은 타일 방식으로 내려받는 실제 항공/위성영상 계열 이미지입니다. 이 MVP에서는 배경 확인용으로 쓰고, 별도의 샘플 영상분할 레이어를 10m 격자에 올립니다. 실제 구현에서는 이 배경영상이나 별도 정사영상을 모델에 넣어 segmentation 결과를 만들고, 그 결과를 격자 판정 입력으로 씁니다.</p>
+            <p>기본 배경은 Naver Maps JavaScript API의 위성지도입니다. 브라우저는 현재 화면 위치와 줌 레벨에 맞는 네이버 위성 타일을 받아 지도처럼 이어 붙입니다. 이 MVP에서는 네이버 위성지도는 화면 확인용 배경으로 쓰고, SAM3.1 판독은 develop 서버에서 같은 ROI 좌표 조건으로 별도 위성영상 export와 segmentation을 실행합니다.</p>
           </div>
           <div class="explain-block">
             <h3>Leaflet의 역할</h3>
@@ -1141,7 +1141,7 @@
           </div>
           <div class="explain-block">
             <h3>영상/DEM 판독 MVP</h3>
-            <p>이번 버전은 위성사진 샘플 배경 위에 DEM 경사와 영상분할 결과를 같은 10m 격자에 맞춰 올리는 구조입니다. 영상분할 레이어는 실제 모델 출력처럼 각 칸에 도로, 물, 건물, 숲, 초지, 농경지, 나지, 그림자, 불확실 비율과 신뢰도를 붙입니다. 현재는 브라우저에서 만든 샘플 판독값이고, 실제 단계에서는 항공/위성영상 segmentation 모델 결과로 이 값을 교체하면 됩니다.</p>
+            <p>이번 버전은 네이버 위성지도 배경 위에 DEM 경사와 영상분할 결과를 같은 10m 격자에 맞춰 올리는 구조입니다. 영상분할 레이어는 실제 모델 출력처럼 각 칸에 도로, 물, 건물, 숲, 초지, 농경지, 나지, 그림자, 불확실 비율과 신뢰도를 붙입니다. 현재 브라우저는 판독 결과를 표시하고, 실제 판독값은 develop 서버의 위성영상 export와 SAM3.1 segmentation 결과로 교체됩니다.</p>
           </div>
           <div class="explain-block">
             <h3>수계와 교차점</h3>
@@ -1309,6 +1309,13 @@
     const NAVER_MAPS_KEY_ID = "3vldey3m0j";
     let naverMapLoadPromise = null;
 
+    function naverSatelliteMapType(naverMaps) {
+      return naverMaps.MapTypeId?.HYBRID
+        || naverMaps.MapTypeId?.SATELLITE
+        || naverMaps.MapTypeId?.NORMAL
+        || "hybrid";
+    }
+
     const vehicles = {
       person: {
         label: "도보 인원",
@@ -1430,7 +1437,7 @@
       aoiSizeKm: DEFAULT_AOI_SIZE_KM,
       aoiSizeMode: DEFAULT_AOI_SIZE_MODE,
       pendingAoiSizeMode: null,
-      baseLayer: "imagery",
+      baseLayer: "naver",
       analysisLayer: "passability",
       useVisionSegmentation: true,
       samDataset: null,
@@ -3995,7 +4002,7 @@
       if (state.baseLayer !== "naver") return;
       state.baseLayer = "imagery";
       el.baseLayerSelect.value = state.baseLayer;
-      el.dataStatus.textContent = "네이버 지도 인증/도메인 확인 필요";
+      el.dataStatus.textContent = "네이버 위성지도 인증/도메인 확인 필요";
       syncBaseLayer();
     }
 
@@ -4056,6 +4063,9 @@
       const zoom = clamp(map.getZoom(), MAP_MIN_ZOOM, MAP_MAX_ZOOM);
       state.naverBaseMap.setCenter(new window.naver.maps.LatLng(center.lat, center.lng));
       state.naverBaseMap.setZoom(zoom, false);
+      if (window.naver.maps.MapTypeId && typeof state.naverBaseMap.setMapTypeId === "function") {
+        state.naverBaseMap.setMapTypeId(naverSatelliteMapType(window.naver.maps));
+      }
     }
 
     async function ensureNaverBaseMap() {
@@ -4064,6 +4074,7 @@
         state.naverBaseMap = new naverMaps.Map(el.naverMapBase, {
           center: new naverMaps.LatLng(state.center.lat, state.center.lng),
           zoom: clamp(map.getZoom(), MAP_MIN_ZOOM, MAP_MAX_ZOOM),
+          mapTypeId: naverSatelliteMapType(naverMaps),
           mapTypeControl: false,
           zoomControl: false,
           scaleControl: false,
@@ -4084,19 +4095,19 @@
       if (map.hasLayer(imageryLayer)) map.removeLayer(imageryLayer);
 
       if (wantNaver) {
-        el.dataStatus.textContent = "네이버 지도 로딩";
+        el.dataStatus.textContent = "네이버 위성지도 로딩";
         ensureNaverBaseMap()
           .then(() => {
             if (state.baseLayer !== "naver") return;
             syncNaverBaseView();
-            el.dataStatus.textContent = "네이버 지도 표시";
+            el.dataStatus.textContent = "네이버 위성지도 표시";
           })
           .catch(err => {
             console.warn("Naver Maps JS load failed:", err);
             if (state.baseLayer !== "naver") return;
             state.baseLayer = "imagery";
             el.baseLayerSelect.value = state.baseLayer;
-            el.dataStatus.textContent = "네이버 지도 인증/도메인 확인 필요";
+            el.dataStatus.textContent = "네이버 위성지도 인증/도메인 확인 필요";
             syncBaseLayer();
           });
         return;
