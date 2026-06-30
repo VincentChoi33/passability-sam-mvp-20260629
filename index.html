@@ -1121,6 +1121,16 @@
             <button id="googleKeyBtn" type="button">키 저장</button>
           </div>
         </div>
+        <div class="google-route-box">
+          <div class="google-route-head">
+            <span>Naver 도로 후보</span>
+            <span id="naverRouteStatus" class="google-route-status">프록시 대기</span>
+          </div>
+          <div class="google-route-actions">
+            <button id="naverRouteBtn" type="button">Naver 후보 평가</button>
+            <button id="naverProxyBtn" type="button">프록시 저장</button>
+          </div>
+        </div>
         <div class="vehicle-strip">
           <span>이동 주체별 예상시간</span>
           <select id="vehicleSelect" class="visually-hidden" aria-label="이동 주체">
@@ -1308,6 +1318,10 @@
       googleReady: false,
       googleInitializing: false,
       googleAutocompleteReady: false,
+      naverRouteCandidates: [],
+      naverRouteEndpointKey: "",
+      naverRouteStatus: "idle",
+      naverProxyUrl: "",
       activeRouteIndex: 0,
       routeLayer: null,
       manualBlocked: new Map(),
@@ -1346,6 +1360,9 @@
       googleRouteStatus: document.getElementById("googleRouteStatus"),
       googleRouteBtn: document.getElementById("googleRouteBtn"),
       googleKeyBtn: document.getElementById("googleKeyBtn"),
+      naverRouteStatus: document.getElementById("naverRouteStatus"),
+      naverRouteBtn: document.getElementById("naverRouteBtn"),
+      naverProxyBtn: document.getElementById("naverProxyBtn"),
       blockModeBtn: document.getElementById("blockModeBtn"),
       unblockModeBtn: document.getElementById("unblockModeBtn"),
       clearBlocksBtn: document.getElementById("clearBlocksBtn"),
@@ -1369,6 +1386,7 @@
     setupTopMenus();
 
     const GOOGLE_KEY_STORAGE = "neotactic_google_maps_key";
+    const NAVER_PROXY_STORAGE = "neotactic_naver_directions_proxy";
     let googleLoadPromise = null;
 
     function installGoogleKeyFromUrl() {
@@ -1384,6 +1402,20 @@
       }
       state.googleApiKey = localStorage.getItem(GOOGLE_KEY_STORAGE) || "";
       updateGoogleRouteStatus();
+    }
+
+    function installNaverProxyFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const suppliedProxy = params.get("naverProxy");
+      if (suppliedProxy && suppliedProxy.trim()) {
+        localStorage.setItem(NAVER_PROXY_STORAGE, suppliedProxy.trim());
+        params.delete("naverProxy");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+      state.naverProxyUrl = localStorage.getItem(NAVER_PROXY_STORAGE) || "";
+      updateNaverRouteStatus();
     }
 
     function updateGoogleRouteStatus(message) {
@@ -1407,6 +1439,24 @@
       }
     }
 
+    function updateNaverRouteStatus(message) {
+      if (message) state.naverRouteStatus = message;
+      const labels = {
+        idle: state.naverProxyUrl ? "프록시 연결 대기" : "프록시 대기",
+        routing: "후보 계산 중",
+        scored: "후보 평가 완료",
+        empty: "도로후보 없음",
+        error: "프록시 실패",
+        stale: "후보 갱신 필요"
+      };
+      if (el.naverRouteStatus) {
+        el.naverRouteStatus.textContent = labels[state.naverRouteStatus] || state.naverRouteStatus;
+      }
+      if (el.naverProxyBtn) {
+        el.naverProxyBtn.textContent = state.naverProxyUrl ? "프록시 교체" : "프록시 저장";
+      }
+    }
+
     function currentEndpointKey() {
       if (!state.startLatLng || !state.endLatLng) return "";
       return [
@@ -1421,6 +1471,12 @@
       state.googleRouteCandidates = [];
       state.googleRouteEndpointKey = "";
       if (markStale && state.googleApiKey) updateGoogleRouteStatus("stale");
+    }
+
+    function clearNaverRouteCandidates(markStale = false) {
+      state.naverRouteCandidates = [];
+      state.naverRouteEndpointKey = "";
+      if (markStale && state.naverProxyUrl) updateNaverRouteStatus("stale");
     }
 
     function setRouteInputValues() {
@@ -1439,6 +1495,20 @@
       localStorage.setItem(GOOGLE_KEY_STORAGE, state.googleApiKey);
       updateGoogleRouteStatus("idle");
       return state.googleApiKey;
+    }
+
+    function promptForNaverProxy() {
+      const proxyUrl = window.prompt("Naver Directions proxy URL을 입력하세요. secret은 프론트에 저장하지 않습니다.", state.naverProxyUrl || "");
+      if (!proxyUrl || !proxyUrl.trim()) return "";
+      state.naverProxyUrl = proxyUrl.trim();
+      localStorage.setItem(NAVER_PROXY_STORAGE, state.naverProxyUrl);
+      updateNaverRouteStatus("idle");
+      return state.naverProxyUrl;
+    }
+
+    function ensureNaverProxyUrl() {
+      if (state.naverProxyUrl) return state.naverProxyUrl;
+      return promptForNaverProxy();
     }
 
     function ensureGoogleApiKey() {
@@ -1595,6 +1665,110 @@
         googleDuration: rawRoute.duration || "",
         description: rawRoute.description || ""
       });
+    }
+
+    function appendRouteProxyParams(proxyUrl, params) {
+      const url = new URL(proxyUrl, window.location.href);
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+      return url.toString();
+    }
+
+    function normalizeNaverDirectionsPayload(data, optionLabel) {
+      const rawRoutes = data?.route
+        ? Object.entries(data.route).flatMap(([routeKey, routes]) =>
+            (Array.isArray(routes) ? routes : []).map(route => ({ ...route, routeKey }))
+          )
+        : Array.isArray(data?.routes)
+          ? data.routes
+          : [];
+      return rawRoutes
+        .map((route, index) => {
+          const path = route.path || route.latLngs || [];
+          const latLngs = path
+            .map(point => {
+              if (Array.isArray(point) && point.length >= 2) return { lng: Number(point[0]), lat: Number(point[1]) };
+              if (Number.isFinite(point?.lat) && Number.isFinite(point?.lng)) return { lat: point.lat, lng: point.lng };
+              if (Number.isFinite(point?.latitude) && Number.isFinite(point?.longitude)) return { lat: point.latitude, lng: point.longitude };
+              return null;
+            })
+            .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
+          const summary = route.summary || {};
+          return {
+            latLngs,
+            distanceMeters: summary.distance || route.distanceMeters || 0,
+            duration: summary.duration || route.duration || "",
+            description: `${optionLabel || route.routeKey || "traoptimal"}${index > 0 ? `-${index + 1}` : ""}`
+          };
+        })
+        .filter(route => route.latLngs.length >= 2);
+    }
+
+    function makeNaverRouteCandidate(rawRoute, index) {
+      const latLngs = rawRoute.latLngs || [];
+      const gridRoute = sampleLatLngRouteToGrid(latLngs);
+      if (gridRoute.length < 2) return null;
+      return attachRouteMeta(gridRoute, {
+        source: "naver",
+        label: `Naver 도로 후보 ${index + 1}`,
+        shortLabel: `N${index + 1}`,
+        displayLatLngs: latLngs.map(p => [p.lat, p.lng]),
+        naverDistanceMeters: rawRoute.distanceMeters || 0,
+        naverDuration: rawRoute.duration || "",
+        description: rawRoute.description || ""
+      });
+    }
+
+    async function computeNaverRoutesViaProxy() {
+      const proxyUrl = ensureNaverProxyUrl();
+      if (!proxyUrl) throw new Error("missing_naver_proxy_url");
+      const start = `${state.startLatLng.lng},${state.startLatLng.lat}`;
+      const goal = `${state.endLatLng.lng},${state.endLatLng.lat}`;
+      const options = ["traoptimal", "trafast", "tracomfort"];
+      const allRoutes = [];
+      for (const option of options) {
+        const url = appendRouteProxyParams(proxyUrl, { start, goal, option });
+        const response = await fetch(url, { method: "GET" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || Number(data.code ?? 0) !== 0) {
+          const message = data.message || data.error || `Naver proxy ${response.status}`;
+          throw new Error(message);
+        }
+        allRoutes.push(...normalizeNaverDirectionsPayload(data, option));
+      }
+
+      const seen = new Set();
+      return allRoutes.filter(route => {
+        const key = route.latLngs
+          .filter((_, index) => index % Math.max(1, Math.floor(route.latLngs.length / 8)) === 0)
+          .map(point => `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`)
+          .join("|");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    async function refreshNaverRouteCandidates() {
+      try {
+        if (!ensureNaverProxyUrl()) return;
+        updateNaverRouteStatus("routing");
+        const rawRoutes = await computeNaverRoutesViaProxy();
+        state.naverRouteCandidates = rawRoutes
+          .map((route, index) => makeNaverRouteCandidate(route, index))
+          .filter(Boolean);
+        state.naverRouteEndpointKey = currentEndpointKey();
+        updateNaverRouteStatus(state.naverRouteCandidates.length ? "scored" : "empty");
+        state.activeRouteIndex = 0;
+        recomputeRoute();
+      } catch (err) {
+        console.warn("Naver route candidate request failed:", err);
+        state.naverRouteCandidates = [];
+        state.naverRouteEndpointKey = "";
+        updateNaverRouteStatus("error");
+        recomputeRoute();
+      }
     }
 
     async function computeGoogleRoutesViaRest() {
@@ -3310,6 +3484,7 @@
       state[`${targetKey}LatLng`] = { lat: latLng.lat, lng: latLng.lng };
       setMode("inspect");
       clearGoogleRouteCandidates(true);
+      clearNaverRouteCandidates(true);
       rebuildAoi(`set_${targetKey}`);
     }
 
@@ -3450,6 +3625,8 @@
       await setupGoogleAutocomplete();
     });
     el.googleRouteBtn.addEventListener("click", () => refreshGoogleRouteCandidates());
+    el.naverProxyBtn.addEventListener("click", () => promptForNaverProxy());
+    el.naverRouteBtn.addEventListener("click", () => refreshNaverRouteCandidates());
 
     function updateStampLabel() {
       const size = Math.max(1, state.stampSize);
@@ -3785,6 +3962,7 @@
 
     function routeSourceLabel(meta) {
       if (meta.source === "google") return "Google 도로 후보";
+      if (meta.source === "naver") return "Naver 도로 후보";
       return "우리 A* 우회 경로";
     }
 
@@ -3805,6 +3983,21 @@
         .sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
     }
 
+    function rankedNaverRouteCandidates() {
+      if (!state.naverRouteCandidates.length) return [];
+      if (state.naverRouteEndpointKey !== currentEndpointKey()) return [];
+      return state.naverRouteCandidates
+        .slice()
+        .sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+    }
+
+    function rankedExternalRouteCandidates() {
+      return [
+        ...rankedNaverRouteCandidates(),
+        ...rankedGoogleRouteCandidates()
+      ].sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+    }
+
     function buildFallbackRouteCandidates(routeStart, routeEnd, googleActive = false) {
       return buildRouteCandidates(routeStart, routeEnd).map((route, index) => attachRouteMeta(route, {
         source: "astar",
@@ -3814,16 +4007,16 @@
     }
 
     function mergeRouteCandidates(fallbackRoutes) {
-      const googleRoutes = rankedGoogleRouteCandidates();
-      if (!googleRoutes.length) return fallbackRoutes;
+      const externalRoutes = rankedExternalRouteCandidates();
+      if (!externalRoutes.length) return fallbackRoutes;
 
-      const googleHasBlock = googleRoutes.some(route => {
+      const externalHasBlock = externalRoutes.some(route => {
         const summary = summarizeRoute(route);
         return summary.blocked > 0 || summary.waterNoCrossing > 0 || summary.manualBlocked > 0;
       });
-      const googleLimit = googleHasBlock && fallbackRoutes.length ? 2 : 3;
-      const merged = googleRoutes.slice(0, googleLimit);
-      if (googleHasBlock && fallbackRoutes.length) merged.push(fallbackRoutes[0]);
+      const externalLimit = externalHasBlock && fallbackRoutes.length ? 2 : 3;
+      const merged = externalRoutes.slice(0, externalLimit);
+      if (externalHasBlock && fallbackRoutes.length) merged.push(fallbackRoutes[0]);
       return merged.slice(0, 3);
     }
 
@@ -3843,13 +4036,13 @@
         startM: Math.hypot(routeStart.i - state.start.i, routeStart.j - state.start.j) * CELL_M,
         endM: Math.hypot(routeEnd.i - state.end.i, routeEnd.j - state.end.j) * CELL_M
       };
-      const googleActive = state.googleRouteEndpointKey === currentEndpointKey() && state.googleRouteCandidates.length > 0;
-      const fallbackRoutes = buildFallbackRouteCandidates(routeStart, routeEnd, googleActive);
+      const externalActive = rankedExternalRouteCandidates().length > 0;
+      const fallbackRoutes = buildFallbackRouteCandidates(routeStart, routeEnd, externalActive);
       state.routeCandidates = mergeRouteCandidates(fallbackRoutes);
       if (state.activeRouteIndex >= state.routeCandidates.length) {
         state.activeRouteIndex = 0;
       }
-      if (googleActive) {
+      if (externalActive) {
         const fallbackIndex = state.routeCandidates.findIndex(route => routeMeta(route).source === "astar");
         if (fallbackIndex >= 0 && state.routeCandidates.slice(0, fallbackIndex).every(route => summarizeRoute(route).blocked > 0)) {
           state.activeRouteIndex = fallbackIndex;
@@ -3897,11 +4090,11 @@
         ? meta.displayLatLngs.map(p => Array.isArray(p) ? p : [p.lat, p.lng])
         : buildDisplayRouteLatLngs(route);
       state.routeLayer = L.polyline(latLngs, {
-        color: meta.source === "google"
+        color: meta.source === "google" || meta.source === "naver"
           ? (summary.blocked || summary.waterNoCrossing || summary.manualBlocked ? "#f59e0b" : "#5ea2ff")
           : "#65a7ff",
-        weight: meta.source === "google" ? 5.5 : 5,
-        opacity: meta.source === "google" ? 0.9 : 0.95,
+        weight: meta.source === "google" || meta.source === "naver" ? 5.5 : 5,
+        opacity: meta.source === "google" || meta.source === "naver" ? 0.9 : 0.95,
         lineJoin: "round",
         lineCap: "round"
       }).addTo(map);
@@ -4621,6 +4814,7 @@
 
     async function boot() {
       installGoogleKeyFromUrl();
+      installNaverProxyFromUrl();
       syncEndpointLatLngsFromCells();
       setRouteInputValues();
       syncSpeedInputs();
