@@ -1004,7 +1004,17 @@
             <input id="visionToggle" type="checkbox" checked />
             영상분할 결과를 통행성 판정에 반영
           </label>
-          <p class="note">SAM3.1 영상분할은 ROI별로 새로 계산되어야 합니다. 이 정적 데모는 저장된 샘플 ROI와 정확히 맞을 때만 SAM 결과를 적용하고, ROI가 바뀌면 서버 재연산이 필요하다고 표시합니다.</p>
+          <div class="google-route-box">
+            <div class="google-route-head">
+              <span>SAM3.1 ROI 추론</span>
+              <span id="samInferenceStatus" class="google-route-status">API 대기</span>
+            </div>
+            <div class="google-route-actions">
+              <button id="samInferenceBtn" type="button">현재 ROI 추론</button>
+              <button id="samApiBtn" type="button">API 저장</button>
+            </div>
+          </div>
+          <p class="note">SAM3.1 영상분할은 ROI별로 새로 계산되어야 합니다. SAM API URL이 설정되어 있으면 ROI 계산 때 서버에 bbox/grid를 보내 새 segmentation grid를 받아오고, 없으면 재연산 필요로 표시합니다.</p>
         </div>
       </section>
 
@@ -1205,7 +1215,7 @@
         <div class="route-busy-panel">
           <span class="route-spinner" aria-hidden="true"></span>
           <div class="route-busy-text">
-            <strong>최적경로 탐색중</strong>
+            <strong id="routeBusyTitle">최적경로 탐색중</strong>
             <span id="routeBusyDetail">10m 격자 비용맵에서 후보 경로를 계산 중입니다.</span>
           </div>
         </div>
@@ -1431,6 +1441,10 @@
       samDataset: null,
       samApplied: false,
       samMaskStats: null,
+      samApiUrl: "",
+      samInferenceStatus: "idle",
+      samInferenceBusy: false,
+      samInferenceEndpointKey: "",
       hydroStats: { stream: 0, drainage: 0, valley: 0 },
       center: { ...DEFAULT_CENTER },
       cells: [],
@@ -1482,6 +1496,7 @@
       mapWrap: document.querySelector(".map-wrap"),
       naverMapBase: document.getElementById("naverMapBase"),
       routeBusy: document.getElementById("routeBusy"),
+      routeBusyTitle: document.getElementById("routeBusyTitle"),
       routeBusyDetail: document.getElementById("routeBusyDetail"),
       dataStatus: document.getElementById("dataStatus"),
       modeChip: document.getElementById("modeChip"),
@@ -1504,6 +1519,9 @@
       naverRouteStatus: document.getElementById("naverRouteStatus"),
       naverRouteBtn: document.getElementById("naverRouteBtn"),
       naverProxyBtn: document.getElementById("naverProxyBtn"),
+      samInferenceStatus: document.getElementById("samInferenceStatus"),
+      samInferenceBtn: document.getElementById("samInferenceBtn"),
+      samApiBtn: document.getElementById("samApiBtn"),
       blockModeBtn: document.getElementById("blockModeBtn"),
       unblockModeBtn: document.getElementById("unblockModeBtn"),
       clearBlocksBtn: document.getElementById("clearBlocksBtn"),
@@ -1528,6 +1546,7 @@
 
     const GOOGLE_KEY_STORAGE = "neotactic_google_maps_key";
     const NAVER_PROXY_STORAGE = "neotactic_naver_directions_proxy";
+    const SAM_API_STORAGE = "neotactic_sam_roi_api";
     let googleLoadPromise = null;
 
     function installGoogleKeyFromUrl() {
@@ -1557,6 +1576,21 @@
       }
       state.naverProxyUrl = localStorage.getItem(NAVER_PROXY_STORAGE) || "";
       updateNaverRouteStatus();
+    }
+
+    function installSamApiFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const suppliedApi = params.get("samApi") || params.get("samApiUrl");
+      if (suppliedApi && suppliedApi.trim()) {
+        localStorage.setItem(SAM_API_STORAGE, suppliedApi.trim());
+        params.delete("samApi");
+        params.delete("samApiUrl");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+      state.samApiUrl = localStorage.getItem(SAM_API_STORAGE) || "";
+      updateSamInferenceStatus();
     }
 
     function updateGoogleRouteStatus(message) {
@@ -1595,6 +1629,30 @@
       }
       if (el.naverProxyBtn) {
         el.naverProxyBtn.textContent = state.naverProxyUrl ? "프록시 교체" : "프록시 저장";
+      }
+    }
+
+    function updateSamInferenceStatus(message) {
+      if (message) state.samInferenceStatus = message;
+      const labels = {
+        idle: state.samApiUrl ? "API 연결 대기" : "API 대기",
+        queued: "요청 전송",
+        running: "SAM 추론 중",
+        polling: "결과 대기",
+        ready: "ROI 판독 완료",
+        reused: "기존 ROI 사용",
+        missing: "API 미설정",
+        stale: "재추론 필요",
+        error: "추론 실패"
+      };
+      if (el.samInferenceStatus) {
+        el.samInferenceStatus.textContent = labels[state.samInferenceStatus] || state.samInferenceStatus;
+      }
+      if (el.samApiBtn) {
+        el.samApiBtn.textContent = state.samApiUrl ? "API 교체" : "API 저장";
+      }
+      if (el.samInferenceBtn) {
+        el.samInferenceBtn.disabled = state.samInferenceBusy;
       }
     }
 
@@ -1739,9 +1797,23 @@
       return state.naverProxyUrl;
     }
 
+    function promptForSamApi() {
+      const apiUrl = window.prompt("SAM3.1 ROI inference API URL을 입력하세요. 예: https://.../sam/roi", state.samApiUrl || "");
+      if (!apiUrl || !apiUrl.trim()) return "";
+      state.samApiUrl = apiUrl.trim();
+      localStorage.setItem(SAM_API_STORAGE, state.samApiUrl);
+      updateSamInferenceStatus("idle");
+      return state.samApiUrl;
+    }
+
     function ensureNaverProxyUrl() {
       if (state.naverProxyUrl) return state.naverProxyUrl;
       return promptForNaverProxy();
+    }
+
+    function ensureSamApiUrl() {
+      if (state.samApiUrl) return state.samApiUrl;
+      return promptForSamApi();
     }
 
     function ensureGoogleApiKey() {
@@ -2823,6 +2895,157 @@
 
     function samRecomputeNeeded() {
       return Boolean(state.samDataset && !samDatasetMatchesCurrentAoi());
+    }
+
+    function currentSamRoiKey() {
+      return [
+        state.center.lat.toFixed(6),
+        state.center.lng.toFixed(6),
+        GRID_N,
+        CELL_M,
+        Math.round(GRID_N * CELL_M)
+      ].join(":");
+    }
+
+    function currentSamRequestPayload() {
+      const bbox = currentAoiBbox();
+      return {
+        requestId: `sam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        center: { ...state.center },
+        bbox,
+        meters: { width: GRID_N * CELL_M, height: GRID_N * CELL_M },
+        grid: { n: GRID_N, cellM: CELL_M },
+        image: { source: "Esri World Imagery", zoom: 16, size: 1536 },
+        endpoints: {
+          start: state.startLatLng,
+          end: state.endLatLng
+        },
+        routePlan: {
+          source: state.roiPlanSource,
+          distanceM: state.roiPlanDistanceM,
+          spanM: state.roiPlanSpanM,
+          latLngs: state.roiPlanLatLngs
+        }
+      };
+    }
+
+    function isSamGridPayload(data) {
+      return Boolean(data?.meta?.center && data?.meta?.grid && Array.isArray(data?.cells));
+    }
+
+    function absoluteSamUrl(url, baseUrl) {
+      try {
+        return new URL(url, baseUrl || window.location.href).toString();
+      } catch {
+        return url;
+      }
+    }
+
+    async function fetchSamJson(url, options = {}) {
+      const headers = new Headers(options.headers || {});
+      if (/ngrok/i.test(url)) headers.set("ngrok-skip-browser-warning", "true");
+      const response = await fetch(url, { ...options, headers });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok && !data.statusUrl && !data.status_url) {
+        throw new Error(data.message || data.error || `SAM API ${response.status}`);
+      }
+      return { data, responseUrl: response.url || url };
+    }
+
+    async function resolveSamInferenceResponse(data, baseUrl) {
+      if (isSamGridPayload(data)) return data;
+      if (isSamGridPayload(data?.segmentation_grid)) return data.segmentation_grid;
+      if (isSamGridPayload(data?.grid)) return data.grid;
+      if (isSamGridPayload(data?.result?.segmentation_grid)) return data.result.segmentation_grid;
+
+      const directResultUrl = data?.resultUrl || data?.result_url || data?.segmentationGridUrl || data?.segmentation_grid_url;
+      if (directResultUrl) {
+        const result = await fetchSamJson(absoluteSamUrl(directResultUrl, baseUrl));
+        return resolveSamInferenceResponse(result.data, result.responseUrl);
+      }
+
+      const statusUrl = data?.statusUrl || data?.status_url || data?.pollUrl || data?.poll_url;
+      if (!statusUrl) throw new Error("SAM API 응답에 segmentation grid 또는 statusUrl이 없습니다.");
+
+      const pollUrl = absoluteSamUrl(statusUrl, baseUrl);
+      for (let attempt = 0; attempt < 180; attempt++) {
+        updateSamInferenceStatus("polling");
+        if (el.routeBusyDetail) {
+          el.routeBusyDetail.textContent = `SAM 서버 추론 결과 대기 중 · ${attempt + 1}회`;
+        }
+        await sleep(2000);
+        const poll = await fetchSamJson(pollUrl, { cache: "no-store" });
+        const status = String(poll.data?.status || poll.data?.state || "").toLowerCase();
+        if (["failed", "error", "cancelled"].includes(status)) {
+          throw new Error(poll.data?.message || poll.data?.error || "SAM inference failed");
+        }
+        if (["succeeded", "success", "complete", "completed", "done", "ready"].includes(status) || isSamGridPayload(poll.data)) {
+          return resolveSamInferenceResponse(poll.data, poll.responseUrl);
+        }
+        const resultUrl = poll.data?.resultUrl || poll.data?.result_url || poll.data?.segmentationGridUrl || poll.data?.segmentation_grid_url;
+        if (resultUrl) {
+          const result = await fetchSamJson(absoluteSamUrl(resultUrl, poll.responseUrl));
+          return resolveSamInferenceResponse(result.data, result.responseUrl);
+        }
+      }
+      throw new Error("SAM inference polling timeout");
+    }
+
+    async function requestSamInferenceForCurrentAoi({ force = false } = {}) {
+      if (!force && state.samDataset && samDatasetMatchesCurrentAoi()) {
+        updateSamInferenceStatus("reused");
+        return true;
+      }
+      if (!state.samApiUrl) {
+        updateSamInferenceStatus(state.samDataset ? "stale" : "missing");
+        return false;
+      }
+      if (state.samInferenceBusy) return false;
+
+      state.samInferenceBusy = true;
+      updateSamInferenceStatus("queued");
+      setMapBusy(true, "SAM3.1 ROI 추론중", "위성영상 ROI를 서버에 보내 segmentation grid를 생성 중입니다.");
+      await nextFrame();
+      try {
+        updateSamInferenceStatus("running");
+        const payload = currentSamRequestPayload();
+        const { data, responseUrl } = await fetchSamJson(state.samApiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const grid = await resolveSamInferenceResponse(data, responseUrl);
+        if (!isSamGridPayload(grid)) throw new Error("SAM inference result is not a segmentation grid");
+        state.samDataset = grid;
+        state.samInferenceEndpointKey = currentSamRoiKey();
+        updateSamInferenceStatus("ready");
+        return true;
+      } catch (err) {
+        console.warn("SAM ROI inference failed:", err);
+        updateSamInferenceStatus("error");
+        el.dataStatus.textContent = `SAM3.1 추론 실패 · ${err.message || err}`;
+        return false;
+      } finally {
+        state.samInferenceBusy = false;
+        setMapBusy(false, "최적경로 탐색중", "10m 격자 비용맵에서 후보 경로를 계산 중입니다.");
+        updateSamInferenceStatus();
+      }
+    }
+
+    async function refreshSamInferenceForCurrentAoi() {
+      const ok = await requestSamInferenceForCurrentAoi({ force: true });
+      if (!ok || !state.cells.length) return false;
+      applySamSegmentationGrid();
+      const hydroFusion = fuseDemHydrologyWithSurface();
+      classifyCells();
+      rebuildCrossingCandidates();
+      renderCrossingCandidates();
+      const stats = state.samMaskStats || state.samDataset?.stats || {};
+      el.dataStatus.textContent = `SAM3.1 ROI 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
+      await recomputeRoute("최적경로 탐색중 · SAM3.1 판독 반영");
+      gridLayer._draw();
+      showCellReason(Math.floor(GRID_N / 2), Math.floor(GRID_N / 2));
+      return true;
     }
 
     function applySamSegmentationGrid() {
@@ -4086,6 +4309,8 @@
     el.googleRouteBtn.addEventListener("click", () => refreshGoogleRouteCandidates());
     el.naverProxyBtn.addEventListener("click", () => promptForNaverProxy());
     el.naverRouteBtn.addEventListener("click", () => refreshNaverRouteCandidates());
+    el.samApiBtn.addEventListener("click", () => promptForSamApi());
+    el.samInferenceBtn.addEventListener("click", () => refreshSamInferenceForCurrentAoi());
 
     function updateStampLabel() {
       const size = Math.max(1, state.stampSize);
@@ -4447,14 +4672,23 @@
       return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }
 
-    function setRouteSearchBusy(active, detail = "10m 격자 비용맵에서 후보 경로를 계산 중입니다.") {
-      state.routeSearchBusy = active;
-      if (active) state.routeSearchPreviousStatus = el.dataStatus.textContent || "";
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setMapBusy(active, title, detail) {
       if (el.routeBusy) {
         el.routeBusy.hidden = !active;
         el.routeBusy.classList.toggle("visible", active);
       }
+      if (el.routeBusyTitle) el.routeBusyTitle.textContent = title;
       if (el.routeBusyDetail) el.routeBusyDetail.textContent = detail;
+    }
+
+    function setRouteSearchBusy(active, detail = "10m 격자 비용맵에서 후보 경로를 계산 중입니다.") {
+      state.routeSearchBusy = active;
+      if (active) state.routeSearchPreviousStatus = el.dataStatus.textContent || "";
+      setMapBusy(active, "최적경로 탐색중", detail);
       el.routeBtn.disabled = active;
       el.routeBtn.classList.toggle("is-loading", active);
       el.routeBtn.textContent = active ? "최적경로 탐색중" : "경로 다시 계산";
@@ -5293,6 +5527,7 @@
       const osmOk = await loadOsmFeatures();
       if (!osmOk) applySyntheticFeatures();
       applySampleImageSegmentation();
+      await requestSamInferenceForCurrentAoi();
       const samApplied = applySamSegmentationGrid();
       const hydroFusion = fuseDemHydrologyWithSurface();
 
@@ -5318,6 +5553,7 @@
     async function boot() {
       installGoogleKeyFromUrl();
       installNaverProxyFromUrl();
+      installSamApiFromUrl();
       setAoiSizeKm(state.aoiSizeKm);
       syncEndpointLatLngsFromCells();
       setRoiPlan(directRoutePlanLatLngs(), "direct");
