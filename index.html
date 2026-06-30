@@ -1351,6 +1351,7 @@
       useVisionSegmentation: true,
       samDataset: null,
       samApplied: false,
+      samMaskStats: null,
       hydroStats: { stream: 0, drainage: 0, valley: 0 },
       center: { ...DEFAULT_CENTER },
       cells: [],
@@ -2399,6 +2400,7 @@
             waterCrossing: false,
             crossingStatus: "none",
             crossingSource: null,
+            roadCrossingStatusHint: null,
             building: false,
             source: "unclassified",
             terrainSource: "synthetic_dem_fallback",
@@ -2726,47 +2728,187 @@
         Math.abs(center.lng - state.center.lng) < 0.002;
     }
 
-    function applySamSegmentationGrid() {
-      state.samApplied = false;
-      if (!state.samDataset || !samDatasetMatchesCurrentAoi()) return false;
-      for (const record of state.samDataset.cells || []) {
-        if (!inGrid(record.i, record.j)) continue;
-        const cell = state.cells[idx(record.i, record.j)];
-        cell.visionClass = record.visionClass || cell.visionClass;
-        cell.visionSecondary = record.visionSecondary || cell.visionSecondary;
-        cell.visionConfidence = clamp(Number(record.visionConfidence || 0.72), 0.2, 0.98);
-        cell.visionPrimaryPct = clamp(Number(record.visionPrimaryPct || 70), 0, 100);
-        cell.visionSecondaryPct = clamp(Number(record.visionSecondaryPct || 0), 0, 100);
-        cell.visionUnknownPct = clamp(Number(record.visionUnknownPct ?? (100 - cell.visionPrimaryPct)), 0, 100);
-        cell.source = "sam3_1_segmentation";
-        cell.confidence = Math.max(cell.confidence, cell.visionConfidence);
-        cell.sourceConfidence = Math.max(cell.sourceConfidence || 0, cell.visionConfidence);
-        if (record.water) {
-          cell.water = true;
-          cell.road = false;
+    function currentAoiBbox() {
+      return {
+        south: yToLat(-HALF_M),
+        west: xToLng(-HALF_M),
+        north: yToLat(HALF_M),
+        east: xToLng(HALF_M)
+      };
+    }
+
+    function samDatasetCoversCurrentAoi() {
+      const meta = state.samDataset?.meta;
+      const center = meta?.center;
+      if (!center) return false;
+      const grid = meta.grid;
+      if (grid && Number(grid.cellM) !== CELL_M) return false;
+      const bbox = meta.bbox;
+      if (!bbox) {
+        return Math.abs(center.lat - state.center.lat) < 0.03 &&
+          Math.abs(center.lng - state.center.lng) < 0.03;
+      }
+      const current = currentAoiBbox();
+      return bbox.west <= current.east &&
+        bbox.east >= current.west &&
+        bbox.south <= current.north &&
+        bbox.north >= current.south;
+    }
+
+    function samRecordToCurrentGrid(record) {
+      const meta = state.samDataset?.meta;
+      const center = meta?.center;
+      const grid = meta?.grid || {};
+      if (!center || !Number.isFinite(record.i) || !Number.isFinite(record.j)) return null;
+      const sourceCellM = Number(grid.cellM || CELL_M);
+      const sourceN = Number(grid.n || GRID_N);
+      const sourceHalfM = (sourceN * sourceCellM) / 2;
+      const sourceMetersPerLng = METERS_PER_LAT * Math.cos(center.lat * Math.PI / 180);
+      const sourceX = -sourceHalfM + (record.i + 0.5) * sourceCellM;
+      const sourceY = sourceHalfM - (record.j + 0.5) * sourceCellM;
+      const latLng = {
+        lat: center.lat + sourceY / METERS_PER_LAT,
+        lng: center.lng + sourceX / sourceMetersPerLng
+      };
+      const p = rawLatLngToIJ(latLng);
+      return inGrid(p.i, p.j) ? p : null;
+    }
+
+    function mergeSamRecord(target, record, p) {
+      target.i = p.i;
+      target.j = p.j;
+      target.count += 1;
+      target.water = target.water || Boolean(record.water);
+      target.stream = target.stream || Boolean(record.stream);
+      target.road = target.road || Boolean(record.road);
+      target.forest = target.forest || Boolean(record.forest);
+      target.waterCrossing = target.waterCrossing || Boolean(record.waterCrossing);
+      target.mountainRoad = target.mountainRoad || Boolean(record.mountainRoad);
+      target.trail = target.trail || Boolean(record.trail);
+      target.visionConfidence = Math.max(target.visionConfidence, Number(record.visionConfidence || 0.72));
+      target.visionPrimaryPct = Math.max(target.visionPrimaryPct, Number(record.visionPrimaryPct || 0));
+      target.visionSecondaryPct = Math.max(target.visionSecondaryPct, Number(record.visionSecondaryPct || 0));
+      target.visionUnknownPct = Math.max(target.visionUnknownPct, Number(record.visionUnknownPct ?? 0));
+      target.roadWidthM = Math.max(target.roadWidthM, Number(record.roadWidthM || 0));
+      if (record.roadClass) target.roadClass = record.roadClass;
+      if (record.crossingStatus && crossingStatusRank(record.crossingStatus) > crossingStatusRank(target.crossingStatus)) {
+        target.crossingStatus = record.crossingStatus;
+      }
+      if (record.visionSecondary) target.visionSecondary = record.visionSecondary;
+    }
+
+    function mergedSamVisionClass(mask) {
+      if (mask.road) {
+        if (mask.mountainRoad) return "mountain_road";
+        if (mask.trail) return "trail";
+        return "road";
+      }
+      if (mask.stream) return "stream";
+      if (mask.water) return "water";
+      if (mask.forest) return "trees";
+      return "unknown";
+    }
+
+    function applyMergedSamMask(mask, sourceLabel) {
+      const cell = state.cells[idx(mask.i, mask.j)];
+      const visionClass = mergedSamVisionClass(mask);
+      const confidence = clamp(mask.visionConfidence || 0.72, 0.2, 0.98);
+      cell.visionClass = visionClass;
+      cell.visionSecondary = mask.visionSecondary || secondaryVisionClass(visionClass, cell);
+      cell.visionConfidence = confidence;
+      cell.visionPrimaryPct = clamp(mask.visionPrimaryPct || 70, 0, 100);
+      cell.visionSecondaryPct = clamp(mask.visionSecondaryPct || 0, 0, 100);
+      cell.visionUnknownPct = clamp(mask.visionUnknownPct || (100 - cell.visionPrimaryPct), 0, 100);
+      cell.source = sourceLabel;
+      cell.confidence = Math.max(cell.confidence, cell.visionConfidence);
+      cell.sourceConfidence = Math.max(cell.sourceConfidence || 0, cell.visionConfidence);
+
+      const samRoadClass = mask.roadClass || (mask.mountainRoad ? "mountain_road" : mask.trail ? "path" : mask.waterCrossing ? "sam3_bridge" : "image_road");
+      const samRoadWidth = Number(mask.roadWidthM || (mask.mountainRoad ? 3.1 : mask.trail ? 1.2 : mask.waterCrossing ? 6.5 : 5.5));
+      const hasWaterMask = mask.water || mask.stream;
+      const hasRoadMask = mask.road;
+
+      if (hasWaterMask) {
+        cell.water = true;
+        if (!cell.road && !hasRoadMask) {
           cell.landcover = "water";
-        }
-        if (record.stream) {
-          cell.water = true;
-          cell.road = false;
-          cell.landcover = "water";
-        }
-        if (record.road) {
-          const roadClass = record.roadClass || (record.mountainRoad ? "mountain_road" : record.trail ? "path" : record.waterCrossing ? "sam3_bridge" : "image_road");
-          const roadWidth = Number(record.roadWidthM || (record.mountainRoad ? 3.1 : record.trail ? 1.2 : record.waterCrossing ? 6.5 : 5.5));
-          cell.road = true;
-          cell.water = false;
-          cell.landcover = "road";
-          cell.roadClass = roadClass;
-          cell.roadWidth = Math.max(cell.roadWidth, roadWidth);
-        }
-        if (record.forest && !record.water && !record.road) {
-          cell.landcover = "trees";
-        }
-        if (record.waterCrossing) {
-          setCrossingStatus(cell, record.crossingStatus || "candidate", "sam3_1_road_water_overlap");
         }
       }
+
+      if (hasRoadMask) {
+        if (cell.water || hasWaterMask) {
+          setCrossingStatus(cell, mask.crossingStatus || cell.roadCrossingStatusHint || "candidate", "sam3_1_road_water_overlap");
+        }
+        cell.road = true;
+        cell.landcover = "road";
+        cell.roadClass = cell.roadClass || samRoadClass;
+        cell.roadWidth = Math.max(cell.roadWidth, samRoadWidth);
+      } else if (hasWaterMask && cell.road) {
+        setCrossingStatus(cell, mask.crossingStatus || cell.roadCrossingStatusHint || "candidate", "sam3_1_water_over_existing_road");
+      }
+
+      if (mask.waterCrossing) {
+        setCrossingStatus(cell, mask.crossingStatus || "candidate", "sam3_1_crossing_mask");
+        if (!cell.road) {
+          cell.road = true;
+          cell.landcover = "road";
+          cell.roadClass = "sam3_bridge";
+          cell.roadWidth = Math.max(cell.roadWidth, 6.5);
+        }
+      }
+
+      if (mask.forest && !hasWaterMask && !hasRoadMask && !cell.road) {
+        cell.landcover = "trees";
+      }
+    }
+
+    function applySamSegmentationGrid() {
+      state.samApplied = false;
+      state.samMaskStats = null;
+      if (!state.samDataset || !samDatasetCoversCurrentAoi()) return false;
+      const exactMatch = samDatasetMatchesCurrentAoi();
+      const sourceLabel = exactMatch ? "sam3_1_segmentation" : "sam3_1_segmentation_crop";
+      const masks = new Map();
+      for (const record of state.samDataset.cells || []) {
+        const p = samRecordToCurrentGrid(record);
+        if (!p) continue;
+        const key = cellKey(p.i, p.j);
+        if (!masks.has(key)) {
+          masks.set(key, {
+            i: p.i,
+            j: p.j,
+            count: 0,
+            water: false,
+            stream: false,
+            road: false,
+            forest: false,
+            waterCrossing: false,
+            mountainRoad: false,
+            trail: false,
+            crossingStatus: "none",
+            roadClass: null,
+            roadWidthM: 0,
+            visionConfidence: 0,
+            visionPrimaryPct: 0,
+            visionSecondaryPct: 0,
+            visionUnknownPct: 0,
+            visionSecondary: null
+          });
+        }
+        mergeSamRecord(masks.get(key), record, p);
+      }
+      if (!masks.size) return false;
+      const stats = { applied: 0, waterCells: 0, streamCells: 0, roadCells: 0, crossingCells: 0, forestCells: 0, cropped: !exactMatch };
+      for (const mask of masks.values()) {
+        applyMergedSamMask(mask, sourceLabel);
+        stats.applied += 1;
+        if (mask.water) stats.waterCells += 1;
+        if (mask.stream) stats.streamCells += 1;
+        if (mask.road) stats.roadCells += 1;
+        if (mask.waterCrossing || (mask.water || mask.stream) && state.cells[idx(mask.i, mask.j)].road) stats.crossingCells += 1;
+        if (mask.forest) stats.forestCells += 1;
+      }
+      state.samMaskStats = stats;
       state.samApplied = true;
       return true;
     }
@@ -2993,6 +3135,7 @@
             cell.road = true;
             cell.roadClass = tags.highway;
             cell.roadWidth = Math.max(cell.roadWidth, width);
+            cell.roadCrossingStatusHint = crossingStatus;
             cell.landcover = "road";
             cell.water = false;
             cell.building = false;
@@ -3429,6 +3572,7 @@
         osm_building: "OSM 건물",
         osm_road: "OSM 도로",
         sam3_1_segmentation: "SAM3.1 영상분할",
+        sam3_1_segmentation_crop: "SAM3.1 영상분할 crop",
         dem_hydro_fusion: "DEM 수문분석+영상분할"
       }[value] || value;
     }
@@ -5124,11 +5268,10 @@
       el.dataStatus.textContent = "공간정보 로딩";
       const samReadyForAoi = state.samDataset && samDatasetMatchesCurrentAoi();
       if (samReadyForAoi) {
-        el.dataStatus.textContent = "SAM3.1 판독 적용";
-      } else {
-        const osmOk = await loadOsmFeatures();
-        if (!osmOk) applySyntheticFeatures();
+        el.dataStatus.textContent = "OSM 참고정보 + SAM3.1 판독 적용";
       }
+      const osmOk = await loadOsmFeatures();
+      if (!osmOk) applySyntheticFeatures();
       applySampleImageSegmentation();
       const samApplied = applySamSegmentationGrid();
       const hydroFusion = fuseDemHydrologyWithSurface();
@@ -5140,8 +5283,9 @@
         el.dataStatus.textContent = `${el.dataStatus.textContent} · 교차${state.crossingCandidates.length}`;
       }
       if (samApplied) {
-        const stats = state.samDataset?.stats;
-        el.dataStatus.textContent = `SAM3.1 수계${compactNumber(stats?.waterCells || 0)}/소하천${compactNumber(stats?.streamCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats?.crossings || 0)}`;
+        const stats = state.samMaskStats || state.samDataset?.stats || {};
+        const cropLabel = stats.cropped ? " crop" : "";
+        el.dataStatus.textContent = `SAM3.1${cropLabel} 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
       }
       recomputeRoute();
       gridLayer._draw();
