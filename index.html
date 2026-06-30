@@ -558,6 +558,35 @@
       align-items: center;
     }
 
+    .route-search {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 82px;
+      gap: 6px;
+    }
+
+    .route-search input {
+      min-width: 0;
+      height: 38px;
+      border: 1px solid #34404b;
+      border-radius: 6px;
+      background: #111820;
+      color: #edf2f5;
+      padding: 0 11px;
+      outline: none;
+      font-weight: 650;
+    }
+
+    .route-search input::placeholder {
+      color: #72808d;
+      font-weight: 560;
+    }
+
+    .route-search input:focus {
+      border-color: #5aa7ff;
+      box-shadow: 0 0 0 2px rgba(90, 167, 255, .18);
+    }
+
     .route-dot {
       width: 24px;
       height: 24px;
@@ -588,6 +617,55 @@
       text-align: left;
       padding: 0 12px;
       font-weight: 700;
+    }
+
+    .route-search button {
+      padding: 0 9px;
+      text-align: center;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .google-route-box {
+      display: grid;
+      gap: 8px;
+      border: 1px solid #304052;
+      border-radius: 8px;
+      background: #10161d;
+      padding: 9px;
+    }
+
+    .google-route-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #dce6ee;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .google-route-status {
+      max-width: 170px;
+      color: #95a6b4;
+      font-size: 11px;
+      font-weight: 680;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .google-route-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 84px;
+      gap: 6px;
+    }
+
+    .google-route-actions button {
+      height: 34px;
+      text-align: center;
+      padding: 0 10px;
+      font-size: 12px;
     }
 
     .vehicle-strip {
@@ -1021,11 +1099,27 @@
       <div class="route-card" aria-label="경로 지정">
         <div class="route-card-row">
           <span class="route-dot start-dot">출</span>
-          <button id="startModeBtn">출발지 지정</button>
+          <div class="route-search">
+            <input id="startSearchInput" type="text" autocomplete="off" placeholder="출발지 검색 또는 지도 클릭" />
+            <button id="startModeBtn">지도 지정</button>
+          </div>
         </div>
         <div class="route-card-row">
           <span class="route-dot end-dot">도</span>
-          <button id="endModeBtn">도착지 지정</button>
+          <div class="route-search">
+            <input id="endSearchInput" type="text" autocomplete="off" placeholder="도착지 검색 또는 지도 클릭" />
+            <button id="endModeBtn">지도 지정</button>
+          </div>
+        </div>
+        <div class="google-route-box">
+          <div class="google-route-head">
+            <span>Google 도로 후보</span>
+            <span id="googleRouteStatus" class="google-route-status">키 대기</span>
+          </div>
+          <div class="google-route-actions">
+            <button id="googleRouteBtn" type="button">도로 후보 평가</button>
+            <button id="googleKeyBtn" type="button">키 저장</button>
+          </div>
         </div>
         <div class="vehicle-strip">
           <span>이동 주체별 예상시간</span>
@@ -1207,6 +1301,13 @@
       crossingCandidates: [],
       route: [],
       routeCandidates: [],
+      googleRouteCandidates: [],
+      googleRouteEndpointKey: "",
+      googleRouteStatus: "idle",
+      googleApiKey: "",
+      googleReady: false,
+      googleInitializing: false,
+      googleAutocompleteReady: false,
       activeRouteIndex: 0,
       routeLayer: null,
       manualBlocked: new Map(),
@@ -1238,8 +1339,13 @@
       baseLayerSelect: document.getElementById("baseLayerSelect"),
       analysisLayerSelect: document.getElementById("analysisLayerSelect"),
       visionToggle: document.getElementById("visionToggle"),
+      startSearchInput: document.getElementById("startSearchInput"),
+      endSearchInput: document.getElementById("endSearchInput"),
       startModeBtn: document.getElementById("startModeBtn"),
       endModeBtn: document.getElementById("endModeBtn"),
+      googleRouteStatus: document.getElementById("googleRouteStatus"),
+      googleRouteBtn: document.getElementById("googleRouteBtn"),
+      googleKeyBtn: document.getElementById("googleKeyBtn"),
       blockModeBtn: document.getElementById("blockModeBtn"),
       unblockModeBtn: document.getElementById("unblockModeBtn"),
       clearBlocksBtn: document.getElementById("clearBlocksBtn"),
@@ -1261,6 +1367,335 @@
     };
 
     setupTopMenus();
+
+    const GOOGLE_KEY_STORAGE = "neotactic_google_maps_key";
+    let googleLoadPromise = null;
+
+    function installGoogleKeyFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const suppliedKey = params.get("googleKey") || params.get("gmapsKey");
+      if (suppliedKey && suppliedKey.trim()) {
+        localStorage.setItem(GOOGLE_KEY_STORAGE, suppliedKey.trim());
+        params.delete("googleKey");
+        params.delete("gmapsKey");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+      state.googleApiKey = localStorage.getItem(GOOGLE_KEY_STORAGE) || "";
+      updateGoogleRouteStatus();
+    }
+
+    function updateGoogleRouteStatus(message) {
+      if (message) state.googleRouteStatus = message;
+      const labels = {
+        idle: state.googleApiKey ? "연결 대기" : "키 대기",
+        loading: "Google 연결 중",
+        ready: "검색 준비",
+        routing: "후보 계산 중",
+        scored: "후보 평가 완료",
+        fallback: "A* 우회 표시",
+        empty: "도로후보 없음",
+        error: "연결 실패",
+        stale: "후보 갱신 필요"
+      };
+      if (el.googleRouteStatus) {
+        el.googleRouteStatus.textContent = labels[state.googleRouteStatus] || state.googleRouteStatus;
+      }
+      if (el.googleKeyBtn) {
+        el.googleKeyBtn.textContent = state.googleApiKey ? "키 교체" : "키 저장";
+      }
+    }
+
+    function currentEndpointKey() {
+      if (!state.startLatLng || !state.endLatLng) return "";
+      return [
+        state.startLatLng.lat.toFixed(6),
+        state.startLatLng.lng.toFixed(6),
+        state.endLatLng.lat.toFixed(6),
+        state.endLatLng.lng.toFixed(6)
+      ].join(",");
+    }
+
+    function clearGoogleRouteCandidates(markStale = false) {
+      state.googleRouteCandidates = [];
+      state.googleRouteEndpointKey = "";
+      if (markStale && state.googleApiKey) updateGoogleRouteStatus("stale");
+    }
+
+    function setRouteInputValues() {
+      if (el.startSearchInput && state.startLatLng) {
+        el.startSearchInput.value = `출발 ${state.startLatLng.lat.toFixed(5)}, ${state.startLatLng.lng.toFixed(5)}`;
+      }
+      if (el.endSearchInput && state.endLatLng) {
+        el.endSearchInput.value = `도착 ${state.endLatLng.lat.toFixed(5)}, ${state.endLatLng.lng.toFixed(5)}`;
+      }
+    }
+
+    function promptForGoogleKey() {
+      const key = window.prompt("Google Maps API key를 입력하세요. 이 브라우저에만 저장됩니다.", state.googleApiKey || "");
+      if (!key || !key.trim()) return "";
+      state.googleApiKey = key.trim();
+      localStorage.setItem(GOOGLE_KEY_STORAGE, state.googleApiKey);
+      updateGoogleRouteStatus("idle");
+      return state.googleApiKey;
+    }
+
+    function ensureGoogleApiKey() {
+      if (state.googleApiKey) return state.googleApiKey;
+      return promptForGoogleKey();
+    }
+
+    async function ensureGoogleMapsLoaded() {
+      const key = ensureGoogleApiKey();
+      if (!key) throw new Error("missing_google_api_key");
+      if (window.google?.maps?.importLibrary || window.google?.maps?.places) {
+        state.googleReady = true;
+        return window.google.maps;
+      }
+      if (googleLoadPromise) return googleLoadPromise;
+      updateGoogleRouteStatus("loading");
+      googleLoadPromise = new Promise((resolve, reject) => {
+        const callbackName = `__neoTacticGoogleReady_${Date.now()}`;
+        window[callbackName] = () => {
+          delete window[callbackName];
+          state.googleReady = true;
+          updateGoogleRouteStatus("ready");
+          resolve(window.google.maps);
+        };
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&libraries=places,routes&loading=async&callback=${callbackName}`;
+        script.async = true;
+        script.defer = true;
+        script.onerror = () => {
+          delete window[callbackName];
+          googleLoadPromise = null;
+          updateGoogleRouteStatus("error");
+          reject(new Error("google_maps_js_load_failed"));
+        };
+        document.head.appendChild(script);
+      });
+      return googleLoadPromise;
+    }
+
+    async function setupGoogleAutocomplete() {
+      if (state.googleAutocompleteReady || !state.googleApiKey) return;
+      try {
+        await ensureGoogleMapsLoaded();
+        if (!window.google?.maps?.places?.Autocomplete) return;
+        const options = {
+          fields: ["geometry", "name", "formatted_address"],
+          bounds: {
+            south: state.center.lat - 0.08,
+            west: state.center.lng - 0.08,
+            north: state.center.lat + 0.08,
+            east: state.center.lng + 0.08
+          },
+          strictBounds: false
+        };
+        const startAuto = new google.maps.places.Autocomplete(el.startSearchInput, options);
+        const endAuto = new google.maps.places.Autocomplete(el.endSearchInput, options);
+        startAuto.addListener("place_changed", () => applyAutocompletePlace(startAuto, "start"));
+        endAuto.addListener("place_changed", () => applyAutocompletePlace(endAuto, "end"));
+        state.googleAutocompleteReady = true;
+        updateGoogleRouteStatus("ready");
+      } catch (err) {
+        console.warn("Google autocomplete setup failed:", err);
+        updateGoogleRouteStatus("error");
+      }
+    }
+
+    function applyAutocompletePlace(autocomplete, targetKey) {
+      const place = autocomplete.getPlace();
+      const location = place?.geometry?.location;
+      if (!location) return;
+      const latLng = { lat: location.lat(), lng: location.lng() };
+      const input = targetKey === "start" ? el.startSearchInput : el.endSearchInput;
+      if (input) input.value = place.formatted_address || place.name || `${latLng.lat.toFixed(5)}, ${latLng.lng.toFixed(5)}`;
+      setEndpoint(targetKey, latLng);
+    }
+
+    function geoDistanceMeters(a, b) {
+      const r = 6371008.8;
+      const lat1 = a.lat * Math.PI / 180;
+      const lat2 = b.lat * Math.PI / 180;
+      const dLat = (b.lat - a.lat) * Math.PI / 180;
+      const dLng = (b.lng - a.lng) * Math.PI / 180;
+      const s = Math.sin(dLat / 2) ** 2
+        + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      return 2 * r * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+    }
+
+    function interpolateLatLng(a, b, t) {
+      return {
+        lat: a.lat + (b.lat - a.lat) * t,
+        lng: a.lng + (b.lng - a.lng) * t
+      };
+    }
+
+    function decodeEncodedPolyline(encoded) {
+      const points = [];
+      let index = 0;
+      let lat = 0;
+      let lng = 0;
+      while (index < encoded.length) {
+        let result = 0;
+        let shift = 0;
+        let byte = null;
+        do {
+          byte = encoded.charCodeAt(index++) - 63;
+          result |= (byte & 0x1f) << shift;
+          shift += 5;
+        } while (byte >= 0x20);
+        lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+        result = 0;
+        shift = 0;
+        do {
+          byte = encoded.charCodeAt(index++) - 63;
+          result |= (byte & 0x1f) << shift;
+          shift += 5;
+        } while (byte >= 0x20);
+        lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+        points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+      }
+      return points;
+    }
+
+    function sampleLatLngRouteToGrid(latLngs) {
+      const route = [];
+      if (!latLngs || latLngs.length < 2) return route;
+      const pushPoint = latLng => {
+        const p = rawLatLngToIJ(latLng);
+        if (!inGrid(p.i, p.j)) return;
+        const last = route[route.length - 1];
+        if (!last || last.i !== p.i || last.j !== p.j) route.push(p);
+      };
+      pushPoint(latLngs[0]);
+      for (let n = 1; n < latLngs.length; n++) {
+        const a = latLngs[n - 1];
+        const b = latLngs[n];
+        const steps = Math.max(1, Math.ceil(geoDistanceMeters(a, b) / CELL_M));
+        for (let step = 1; step <= steps; step++) {
+          pushPoint(interpolateLatLng(a, b, step / steps));
+        }
+      }
+      return route;
+    }
+
+    function makeGoogleRouteCandidate(rawRoute, index) {
+      const latLngs = rawRoute.latLngs || [];
+      const gridRoute = sampleLatLngRouteToGrid(latLngs);
+      if (gridRoute.length < 2) return null;
+      return attachRouteMeta(gridRoute, {
+        source: "google",
+        label: `Google 도로 후보 ${index + 1}`,
+        shortLabel: `G${index + 1}`,
+        displayLatLngs: latLngs.map(p => [p.lat, p.lng]),
+        googleDistanceMeters: rawRoute.distanceMeters || 0,
+        googleDuration: rawRoute.duration || "",
+        description: rawRoute.description || ""
+      });
+    }
+
+    async function computeGoogleRoutesViaRest() {
+      const key = ensureGoogleApiKey();
+      const body = {
+        origin: { location: { latLng: { latitude: state.startLatLng.lat, longitude: state.startLatLng.lng } } },
+        destination: { location: { latLng: { latitude: state.endLatLng.lat, longitude: state.endLatLng.lng } } },
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_UNAWARE",
+        computeAlternativeRoutes: true,
+        polylineQuality: "HIGH_QUALITY",
+        polylineEncoding: "ENCODED_POLYLINE"
+      };
+      const response = await fetch(`https://routes.googleapis.com/directions/v2:computeRoutes?key=${encodeURIComponent(key)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-FieldMask": "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.routeLabels,routes.description"
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data?.error?.message || `Routes API ${response.status}`;
+        throw new Error(message);
+      }
+      return (data.routes || [])
+        .map(route => ({
+          latLngs: route.polyline?.encodedPolyline ? decodeEncodedPolyline(route.polyline.encodedPolyline) : [],
+          distanceMeters: route.distanceMeters || 0,
+          duration: route.duration || "",
+          description: route.description || ""
+        }))
+        .filter(route => route.latLngs.length >= 2);
+    }
+
+    function normalizeGoogleLatLng(value) {
+      if (!value) return null;
+      if (typeof value.lat === "function" && typeof value.lng === "function") {
+        return { lat: value.lat(), lng: value.lng() };
+      }
+      if (Number.isFinite(value.lat) && Number.isFinite(value.lng)) return { lat: value.lat, lng: value.lng };
+      if (Number.isFinite(value.latitude) && Number.isFinite(value.longitude)) return { lat: value.latitude, lng: value.longitude };
+      return null;
+    }
+
+    async function computeGoogleRoutesViaJsLibrary() {
+      await ensureGoogleMapsLoaded();
+      const { Route } = await google.maps.importLibrary("routes");
+      const result = await Route.computeRoutes({
+        origin: `${state.startLatLng.lat},${state.startLatLng.lng}`,
+        destination: `${state.endLatLng.lat},${state.endLatLng.lng}`,
+        travelMode: "DRIVING",
+        computeAlternativeRoutes: true,
+        fields: ["path", "routeLabels", "distanceMeters", "duration", "description"]
+      });
+      return (result.routes || [])
+        .map(route => {
+          const json = typeof route.toJSON === "function" ? route.toJSON() : route;
+          const path = route.path || json.path || [];
+          const latLngs = path.map(normalizeGoogleLatLng).filter(Boolean);
+          return {
+            latLngs,
+            distanceMeters: route.distanceMeters || json.distanceMeters || 0,
+            duration: route.duration || json.duration || "",
+            description: route.description || json.description || ""
+          };
+        })
+        .filter(route => route.latLngs.length >= 2);
+    }
+
+    async function computeGoogleRouteCandidates() {
+      try {
+        return await computeGoogleRoutesViaRest();
+      } catch (restErr) {
+        console.warn("Routes API REST failed, trying Maps JS routes library:", restErr);
+        return await computeGoogleRoutesViaJsLibrary();
+      }
+    }
+
+    async function refreshGoogleRouteCandidates() {
+      try {
+        if (!ensureGoogleApiKey()) return;
+        updateGoogleRouteStatus("routing");
+        await setupGoogleAutocomplete();
+        const rawRoutes = await computeGoogleRouteCandidates();
+        state.googleRouteCandidates = rawRoutes
+          .map((route, index) => makeGoogleRouteCandidate(route, index))
+          .filter(Boolean);
+        state.googleRouteEndpointKey = currentEndpointKey();
+        updateGoogleRouteStatus(state.googleRouteCandidates.length ? "scored" : "empty");
+        state.activeRouteIndex = 0;
+        recomputeRoute();
+      } catch (err) {
+        console.warn("Google route candidate request failed:", err);
+        state.googleRouteCandidates = [];
+        state.googleRouteEndpointKey = "";
+        updateGoogleRouteStatus("error");
+        recomputeRoute();
+      }
+    }
 
     function setupTopMenus() {
       const sidebar = document.querySelector(".sidebar");
@@ -2628,6 +3063,8 @@
       }
       if (reason === "building_or_structure") return "건물/구조물";
       if (reason === "water_without_confirmed_crossing") return "확인된 crossing 없는 수계";
+      if (reason === "route_hits_blocked_cell") return "도로 후보가 차단 격자를 통과";
+      if (reason === "route_crosses_water_without_crossing") return "도로 후보가 crossing 없는 수계를 통과";
       if (reason === "narrow_path_ok") return "좁은 길이지만 도보 통과 가능";
       if (reason === "narrow_road") return "도로 폭이 좁음";
       if (reason.includes("_under_vehicle_clearance_")) return "차량 차폭보다 좁은 선형로";
@@ -2872,6 +3309,7 @@
     function setEndpoint(targetKey, latLng) {
       state[`${targetKey}LatLng`] = { lat: latLng.lat, lng: latLng.lng };
       setMode("inspect");
+      clearGoogleRouteCandidates(true);
       rebuildAoi(`set_${targetKey}`);
     }
 
@@ -3007,6 +3445,11 @@
       gridLayer._draw();
     });
     el.routeBtn.addEventListener("click", () => recomputeRoute());
+    el.googleKeyBtn.addEventListener("click", async () => {
+      if (!promptForGoogleKey()) return;
+      await setupGoogleAutocomplete();
+    });
+    el.googleRouteBtn.addEventListener("click", () => refreshGoogleRouteCandidates());
 
     function updateStampLabel() {
       const size = Math.max(1, state.stampSize);
@@ -3322,6 +3765,68 @@
         .replaceAll('"', "&quot;");
     }
 
+    function attachRouteMeta(route, meta) {
+      Object.defineProperty(route, "__meta", {
+        value: meta,
+        enumerable: false,
+        configurable: true,
+        writable: true
+      });
+      return route;
+    }
+
+    function routeMeta(route) {
+      return route?.__meta || {
+        source: "astar",
+        label: "A* 우회 경로",
+        shortLabel: "우회"
+      };
+    }
+
+    function routeSourceLabel(meta) {
+      if (meta.source === "google") return "Google 도로 후보";
+      return "우리 A* 우회 경로";
+    }
+
+    function routeRiskScore(route) {
+      const summary = summarizeRoute(route);
+      return summary.blocked * 100000
+        + summary.waterNoCrossing * 25000
+        + summary.manualBlocked * 18000
+        + summary.meanCost * 900
+        + summary.minutes;
+    }
+
+    function rankedGoogleRouteCandidates() {
+      if (!state.googleRouteCandidates.length) return [];
+      if (state.googleRouteEndpointKey !== currentEndpointKey()) return [];
+      return state.googleRouteCandidates
+        .slice()
+        .sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+    }
+
+    function buildFallbackRouteCandidates(routeStart, routeEnd, googleActive = false) {
+      return buildRouteCandidates(routeStart, routeEnd).map((route, index) => attachRouteMeta(route, {
+        source: "astar",
+        label: googleActive ? `A* 우회 ${index + 1}안` : `${index + 1}안`,
+        shortLabel: googleActive && index === 0 ? "우회" : `${index + 1}안`
+      }));
+    }
+
+    function mergeRouteCandidates(fallbackRoutes) {
+      const googleRoutes = rankedGoogleRouteCandidates();
+      if (!googleRoutes.length) return fallbackRoutes;
+
+      const googleHasBlock = googleRoutes.some(route => {
+        const summary = summarizeRoute(route);
+        return summary.blocked > 0 || summary.waterNoCrossing > 0 || summary.manualBlocked > 0;
+      });
+      const googleLimit = googleHasBlock && fallbackRoutes.length ? 2 : 3;
+      const merged = googleRoutes.slice(0, googleLimit);
+      if (googleHasBlock && fallbackRoutes.length) merged.push(fallbackRoutes[0]);
+      return merged.slice(0, 3);
+    }
+
     function recomputeRoute() {
       const routeStart = nearestPassableCell(state.start, 12);
       const routeEnd = nearestPassableCell(state.end, 12);
@@ -3338,9 +3843,18 @@
         startM: Math.hypot(routeStart.i - state.start.i, routeStart.j - state.start.j) * CELL_M,
         endM: Math.hypot(routeEnd.i - state.end.i, routeEnd.j - state.end.j) * CELL_M
       };
-      state.routeCandidates = buildRouteCandidates(routeStart, routeEnd);
+      const googleActive = state.googleRouteEndpointKey === currentEndpointKey() && state.googleRouteCandidates.length > 0;
+      const fallbackRoutes = buildFallbackRouteCandidates(routeStart, routeEnd, googleActive);
+      state.routeCandidates = mergeRouteCandidates(fallbackRoutes);
       if (state.activeRouteIndex >= state.routeCandidates.length) {
         state.activeRouteIndex = 0;
+      }
+      if (googleActive) {
+        const fallbackIndex = state.routeCandidates.findIndex(route => routeMeta(route).source === "astar");
+        if (fallbackIndex >= 0 && state.routeCandidates.slice(0, fallbackIndex).every(route => summarizeRoute(route).blocked > 0)) {
+          state.activeRouteIndex = fallbackIndex;
+          updateGoogleRouteStatus("fallback");
+        }
       }
       if (!state.routeCandidates.length) {
         state.route = [];
@@ -3377,11 +3891,17 @@
         setRouteMetricsUnavailable("차단");
         return;
       }
-      const latLngs = buildDisplayRouteLatLngs(route);
+      const meta = routeMeta(route);
+      const summary = summarizeRoute(route);
+      const latLngs = meta.displayLatLngs?.length
+        ? meta.displayLatLngs.map(p => Array.isArray(p) ? p : [p.lat, p.lng])
+        : buildDisplayRouteLatLngs(route);
       state.routeLayer = L.polyline(latLngs, {
-        color: "#65a7ff",
-        weight: 5,
-        opacity: 0.95,
+        color: meta.source === "google"
+          ? (summary.blocked || summary.waterNoCrossing || summary.manualBlocked ? "#f59e0b" : "#5ea2ff")
+          : "#65a7ff",
+        weight: meta.source === "google" ? 5.5 : 5,
+        opacity: meta.source === "google" ? 0.9 : 0.95,
         lineJoin: "round",
         lineCap: "round"
       }).addTo(map);
@@ -3495,7 +4015,9 @@
           return;
         }
         const summary = summarizeRoute(route);
-        button.innerHTML = `<span>${index + 1}안</span><small>${formatDuration(summary.minutes)}</small>`;
+        const meta = routeMeta(route);
+        const riskLabel = summary.blocked || summary.waterNoCrossing || summary.manualBlocked ? " · 막힘" : "";
+        button.innerHTML = `<span>${escapeHtml(meta.shortLabel || `${index + 1}안`)}</span><small>${formatDuration(summary.minutes)}${riskLabel}</small>`;
       });
     }
 
@@ -3852,24 +4374,44 @@
       let cost = 0;
       let minutes = 0;
       let caution = 0;
+      let blocked = 0;
+      let red = 0;
+      let waterNoCrossing = 0;
+      let manualBlocked = 0;
       const reasonCount = new Map();
       for (let n = 0; n < trace.length; n++) {
         const p = trace[n];
+        if (!inGrid(p.i, p.j)) {
+          blocked += 1;
+          cost += 28;
+          continue;
+        }
         const cell = state.cells[idx(p.i, p.j)];
-        cost += Number.isFinite(cell.cost) ? cell.cost : 0;
+        const input = effectiveCellInputs(cell);
+        const finiteCost = Number.isFinite(cell.cost);
+        if (!finiteCost) blocked += 1;
+        if (cell.zone === "red") red += 1;
+        if (state.manualBlocked.has(cellKey(p.i, p.j))) manualBlocked += 1;
+        if (input.water && !input.waterCrossing && !input.road) waterNoCrossing += 1;
+        cost += finiteCost ? cell.cost : 28;
         if (cell.zone === "yellow" || cell.zone === "orange") caution += 1;
+        if (!finiteCost) reasonCount.set("route_hits_blocked_cell", (reasonCount.get("route_hits_blocked_cell") || 0) + 1);
+        if (input.water && !input.waterCrossing && !input.road) {
+          reasonCount.set("route_crosses_water_without_crossing", (reasonCount.get("route_crosses_water_without_crossing") || 0) + 1);
+        }
         cell.reasons.forEach(r => reasonCount.set(r, (reasonCount.get(r) || 0) + 1));
         if (n > 0) {
           const prev = trace[n - 1];
           const stepM = Math.hypot(p.i - prev.i, p.j - prev.j) * CELL_M;
           dist += stepM;
-          minutes += (stepM / 1000) / estimatedSpeedKph(cell, vehicle) * 60;
+          const speed = finiteCost ? estimatedSpeedKph(cell, vehicle) : Math.max(0.6, vehicle.minKph * 0.55);
+          minutes += (stepM / 1000) / speed * 60;
         }
       }
       const meanCost = cost / Math.max(1, trace.length);
       const avgSpeed = minutes > 0 ? (dist / 1000) / (minutes / 60) : 0;
       const topReasons = [...reasonCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-      return { dist, cost, minutes, caution, meanCost, avgSpeed, topReasons, traceLength: trace.length, waypointLength: route.length };
+      return { dist, cost, minutes, caution, blocked, red, waterNoCrossing, manualBlocked, meanCost, avgSpeed, topReasons, traceLength: trace.length, waypointLength: route.length };
     }
 
     function summarizeRouteTimeForVehicle(route, vehicleKey) {
@@ -3882,10 +4424,14 @@
       for (let n = 1; n < trace.length; n++) {
         const p = trace[n];
         const prev = trace[n - 1];
+        if (!inGrid(p.i, p.j) || !inGrid(prev.i, prev.j)) continue;
         const cell = state.cells[idx(p.i, p.j)];
         const stepM = Math.hypot(p.i - prev.i, p.j - prev.j) * CELL_M;
         dist += stepM;
-        minutes += (stepM / 1000) / estimatedSpeedKphWithSettings(cell, vehicle, speeds) * 60;
+        const speed = Number.isFinite(cell.cost)
+          ? estimatedSpeedKphWithSettings(cell, vehicle, speeds)
+          : Math.max(0.6, vehicle.minKph * 0.55);
+        minutes += (stepM / 1000) / speed * 60;
       }
       const avgSpeed = minutes > 0 ? (dist / 1000) / (minutes / 60) : 0;
       return { minutes, avgSpeed };
@@ -3904,6 +4450,7 @@
 
     function updateRouteMetrics(route) {
       const summary = summarizeRoute(route);
+      const meta = routeMeta(route);
       updateVehicleCompare(route);
       el.distanceMetric.textContent = `${(summary.dist / 1000).toFixed(2)} km`;
       el.costMetric.textContent = formatDuration(summary.minutes);
@@ -3916,11 +4463,14 @@
           <span>${vehicles[state.vehicleKey].label}</span>
         </div>
         <ul class="reason-list">
+          <li>경로 출처: ${escapeHtml(routeSourceLabel(meta))}</li>
+          ${meta.description ? `<li>도로 후보: ${escapeHtml(meta.description)}</li>` : ""}
           <li>표시점/검사격자: ${summary.waypointLength}/${summary.traceLength}</li>
           <li>거리: ${(summary.dist / 1000).toFixed(2)} km</li>
           <li>예상 이동시간: ${formatDuration(summary.minutes)}</li>
           <li>보정 평균속도: ${summary.avgSpeed.toFixed(1)} km/h</li>
           <li>난이도 점수: ${summary.meanCost.toFixed(1)} (${difficultyLabel(summary.meanCost)})</li>
+          <li>차단/수계 충돌: 차단 ${summary.blocked}칸 / 수계 ${summary.waterNoCrossing}칸 / 지정차단 ${summary.manualBlocked}칸</li>
           <li>입력 기준속도: 도로 ${currentSpeedSettings().roadKph.toFixed(0)} km/h / 비도로 ${currentSpeedSettings().offroadKph.toFixed(0)} km/h</li>
           <li>주의 격자: ${summary.caution}/${summary.traceLength}</li>
           <li>지정 차단 격자: ${state.manualBlocked.size}칸</li>
@@ -4070,7 +4620,9 @@
     }
 
     async function boot() {
+      installGoogleKeyFromUrl();
       syncEndpointLatLngsFromCells();
+      setRouteInputValues();
       syncSpeedInputs();
       el.baseLayerSelect.value = state.baseLayer;
       el.analysisLayerSelect.value = state.analysisLayer;
@@ -4081,6 +4633,7 @@
       el.gridOpacityValue.textContent = String(Math.round(state.gridOpacity * 100));
       updateStampLabel();
       await rebuildAoi("boot");
+      await setupGoogleAutocomplete();
     }
 
     boot();
