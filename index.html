@@ -1200,6 +1200,8 @@
     const GRID_N = 500;
     const HALF_M = (GRID_N * CELL_M) / 2;
     const METERS_PER_LAT = 111320;
+    const MAP_MIN_ZOOM = 6;
+    const MAP_MAX_ZOOM = 21;
     const NAVER_MAPS_KEY_ID = "3vldey3m0j";
     let naverMapLoadPromise = null;
 
@@ -3559,8 +3561,8 @@
 
     const map = L.map("map", {
       zoomControl: false,
-      minZoom: 12,
-      maxZoom: 21
+      minZoom: MAP_MIN_ZOOM,
+      maxZoom: MAP_MAX_ZOOM
     }).setView([state.center.lat, state.center.lng], 14);
     window.__routeMvpDebug = { map, state };
     window.__routeMvpDebug.routeTrace = route => routeTrace(route || state.route);
@@ -3641,7 +3643,7 @@
     function syncNaverBaseView() {
       if (!state.naverBaseMap || state.baseLayer !== "naver" || !window.naver?.maps?.LatLng) return;
       const center = map.getCenter();
-      const zoom = clamp(map.getZoom(), 6, 21);
+      const zoom = clamp(map.getZoom(), MAP_MIN_ZOOM, MAP_MAX_ZOOM);
       state.naverBaseMap.setCenter(new window.naver.maps.LatLng(center.lat, center.lng));
       state.naverBaseMap.setZoom(zoom, false);
     }
@@ -3651,7 +3653,7 @@
       if (!state.naverBaseMap) {
         state.naverBaseMap = new naverMaps.Map(el.naverMapBase, {
           center: new naverMaps.LatLng(state.center.lat, state.center.lng),
-          zoom: clamp(map.getZoom(), 6, 21),
+          zoom: clamp(map.getZoom(), MAP_MIN_ZOOM, MAP_MAX_ZOOM),
           mapTypeControl: false,
           zoomControl: false,
           scaleControl: false,
