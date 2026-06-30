@@ -2972,14 +2972,67 @@
         setRouteMetricsUnavailable("차단");
         return;
       }
-      const latLngs = route.map(p => ijToLatLng(p.i, p.j));
+      const latLngs = buildDisplayRouteLatLngs(route);
       state.routeLayer = L.polyline(latLngs, {
         color: "#65a7ff",
         weight: 5,
         opacity: 0.95,
-        lineJoin: "round"
+        lineJoin: "round",
+        lineCap: "round"
       }).addTo(map);
       updateRouteMetrics(route);
+    }
+
+    function buildDisplayRouteLatLngs(route) {
+      return weakSmoothDisplayRoute(route).map(gridPointToLatLng);
+    }
+
+    function gridPointToLatLng(p) {
+      const x = -HALF_M + (p.i + 0.5) * CELL_M;
+      const y = HALF_M - (p.j + 0.5) * CELL_M;
+      return [yToLat(y), xToLng(x)];
+    }
+
+    function weakSmoothDisplayRoute(route) {
+      if (route.length <= 3) return route;
+      const out = route.map(p => ({ i: p.i, j: p.j }));
+      const strength = 0.16;
+      const maxOffset = 0.38;
+      for (let n = 1; n < route.length - 1; n++) {
+        const p = route[n];
+        if (isHardDisplayAnchor(p)) continue;
+        const prev = route[n - 1];
+        const next = route[n + 1];
+        const targetI = p.i + (prev.i + next.i - 2 * p.i) * strength;
+        const targetJ = p.j + (prev.j + next.j - 2 * p.j) * strength;
+        const di = targetI - p.i;
+        const dj = targetJ - p.j;
+        const offset = Math.hypot(di, dj);
+        if (offset <= 0.01) continue;
+        const scale = Math.min(1, maxOffset / offset);
+        out[n] = {
+          i: p.i + di * scale,
+          j: p.j + dj * scale
+        };
+      }
+      return out;
+    }
+
+    function isHardDisplayAnchor(p) {
+      const cell = state.cells[idx(p.i, p.j)];
+      const input = effectiveCellInputs(cell);
+      if (!Number.isFinite(cell.cost)) return true;
+      if (input.hydroClass === "dem_stream" || input.hydroClass === "dem_drainage") return true;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ni = p.i + di;
+        const nj = p.j + dj;
+        if (!inGrid(ni, nj)) continue;
+        const near = state.cells[idx(ni, nj)];
+        const nearInput = effectiveCellInputs(near);
+        if (!Number.isFinite(near.cost)) return true;
+        if (nearInput.water && !nearInput.waterCrossing && !nearInput.road) return true;
+      }
+      return false;
     }
 
     function updateRouteOptionButtons() {
