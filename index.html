@@ -1332,6 +1332,7 @@
       crossingCandidates: [],
       route: [],
       routeCandidates: [],
+      googleRawRoutes: [],
       googleRouteCandidates: [],
       googleRouteEndpointKey: "",
       googleRouteStatus: "idle",
@@ -1339,6 +1340,7 @@
       googleReady: false,
       googleInitializing: false,
       googleAutocompleteReady: false,
+      naverRawRoutes: [],
       naverRouteCandidates: [],
       naverRouteEndpointKey: "",
       naverRouteStatus: "idle",
@@ -1362,6 +1364,10 @@
       endLatLng: null,
       rebuilding: false,
       pendingRebuild: false,
+      roiPlanLatLngs: [],
+      roiPlanSource: "direct",
+      roiPlanDistanceM: 0,
+      roiPlanSpanM: 0,
       osmLoaded: false,
       stats: null
     };
@@ -1494,12 +1500,14 @@
     }
 
     function clearGoogleRouteCandidates(markStale = false) {
+      state.googleRawRoutes = [];
       state.googleRouteCandidates = [];
       state.googleRouteEndpointKey = "";
       if (markStale && state.googleApiKey) updateGoogleRouteStatus("stale");
     }
 
     function clearNaverRouteCandidates(markStale = false) {
+      state.naverRawRoutes = [];
       state.naverRouteCandidates = [];
       state.naverRouteEndpointKey = "";
       if (markStale && state.naverProxyUrl) updateNaverRouteStatus("stale");
@@ -1781,15 +1789,15 @@
         if (!ensureNaverProxyUrl()) return;
         updateNaverRouteStatus("routing");
         const rawRoutes = await computeNaverRoutesViaProxy();
-        state.naverRouteCandidates = rawRoutes
-          .map((route, index) => makeNaverRouteCandidate(route, index))
-          .filter(Boolean);
+        state.naverRawRoutes = rawRoutes;
         state.naverRouteEndpointKey = currentEndpointKey();
-        updateNaverRouteStatus(state.naverRouteCandidates.length ? "scored" : "empty");
+        setRoiPlanFromRawRoutes(rawRoutes, "naver");
         state.activeRouteIndex = 0;
-        recomputeRoute();
+        await rebuildAoi("naver_route_roi");
+        updateNaverRouteStatus(state.naverRouteCandidates.length ? "scored" : "empty");
       } catch (err) {
         console.warn("Naver route candidate request failed:", err);
+        state.naverRawRoutes = [];
         state.naverRouteCandidates = [];
         state.naverRouteEndpointKey = "";
         updateNaverRouteStatus("error");
@@ -1881,15 +1889,15 @@
         updateGoogleRouteStatus("routing");
         await setupGoogleAutocomplete();
         const rawRoutes = await computeGoogleRouteCandidates();
-        state.googleRouteCandidates = rawRoutes
-          .map((route, index) => makeGoogleRouteCandidate(route, index))
-          .filter(Boolean);
+        state.googleRawRoutes = rawRoutes;
         state.googleRouteEndpointKey = currentEndpointKey();
-        updateGoogleRouteStatus(state.googleRouteCandidates.length ? "scored" : "empty");
+        setRoiPlanFromRawRoutes(rawRoutes, "google");
         state.activeRouteIndex = 0;
-        recomputeRoute();
+        await rebuildAoi("google_route_roi");
+        updateGoogleRouteStatus(state.googleRouteCandidates.length ? "scored" : "empty");
       } catch (err) {
         console.warn("Google route candidate request failed:", err);
+        state.googleRawRoutes = [];
         state.googleRouteCandidates = [];
         state.googleRouteEndpointKey = "";
         updateGoogleRouteStatus("error");
@@ -2077,12 +2085,95 @@
       state.endLatLng = { lat: end[0], lng: end[1] };
     }
 
-    function updateAoiCenterFromEndpoints() {
+    function routeLatLngDistance(latLngs) {
+      if (!latLngs || latLngs.length < 2) return 0;
+      let distance = 0;
+      for (let n = 1; n < latLngs.length; n++) {
+        distance += geoDistanceMeters(latLngs[n - 1], latLngs[n]);
+      }
+      return distance;
+    }
+
+    function directRoutePlanLatLngs() {
+      if (!state.startLatLng || !state.endLatLng) return [];
+      return [
+        { lat: state.startLatLng.lat, lng: state.startLatLng.lng },
+        { lat: state.endLatLng.lat, lng: state.endLatLng.lng }
+      ];
+    }
+
+    function normalizeRoutePlanPoint(point) {
+      if (!point) return null;
+      if (Array.isArray(point) && point.length >= 2) return { lat: Number(point[0]), lng: Number(point[1]) };
+      if (Number.isFinite(point.lat) && Number.isFinite(point.lng)) return { lat: point.lat, lng: point.lng };
+      return null;
+    }
+
+    function setRoiPlan(latLngs, source = "direct") {
+      const points = (latLngs || [])
+        .map(normalizeRoutePlanPoint)
+        .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
+      const fallback = directRoutePlanLatLngs();
+      state.roiPlanLatLngs = points.length >= 2 ? points : fallback;
+      state.roiPlanSource = source;
+      state.roiPlanDistanceM = routeLatLngDistance(state.roiPlanLatLngs);
+    }
+
+    function setRoiPlanFromRawRoutes(rawRoutes, source) {
+      const candidates = (rawRoutes || [])
+        .filter(route => route?.latLngs?.length >= 2)
+        .slice()
+        .sort((a, b) => {
+          const aDistance = a.distanceMeters || routeLatLngDistance(a.latLngs);
+          const bDistance = b.distanceMeters || routeLatLngDistance(b.latLngs);
+          return aDistance - bDistance;
+        });
+      if (!candidates.length) {
+        setRoiPlan(directRoutePlanLatLngs(), "direct");
+        return;
+      }
+      setRoiPlan(candidates[0].latLngs, source);
+    }
+
+    function roiPlanSourceLabel() {
+      if (state.roiPlanSource === "google") return "Google 도로 후보";
+      if (state.roiPlanSource === "naver") return "Naver 도로 후보";
+      return "출발-도착 직선 후보";
+    }
+
+    function updateAoiCenterFromRoutePlan() {
       if (!state.startLatLng || !state.endLatLng) return;
+      if (!state.roiPlanLatLngs.length) setRoiPlan(directRoutePlanLatLngs(), "direct");
+      const points = [
+        ...state.roiPlanLatLngs,
+        { lat: state.startLatLng.lat, lng: state.startLatLng.lng },
+        { lat: state.endLatLng.lat, lng: state.endLatLng.lng }
+      ];
+      const bounds = points.reduce((acc, point) => ({
+        minLat: Math.min(acc.minLat, point.lat),
+        maxLat: Math.max(acc.maxLat, point.lat),
+        minLng: Math.min(acc.minLng, point.lng),
+        maxLng: Math.max(acc.maxLng, point.lng)
+      }), {
+        minLat: Infinity,
+        maxLat: -Infinity,
+        minLng: Infinity,
+        maxLng: -Infinity
+      });
+      if (!Number.isFinite(bounds.minLat) || !Number.isFinite(bounds.minLng)) return;
       state.center = {
-        lat: (state.startLatLng.lat + state.endLatLng.lat) / 2,
-        lng: (state.startLatLng.lng + state.endLatLng.lng) / 2
+        lat: (bounds.minLat + bounds.maxLat) / 2,
+        lng: (bounds.minLng + bounds.maxLng) / 2
       };
+      const verticalM = geoDistanceMeters(
+        { lat: bounds.minLat, lng: bounds.minLng },
+        { lat: bounds.maxLat, lng: bounds.minLng }
+      );
+      const horizontalM = geoDistanceMeters(
+        { lat: bounds.minLat, lng: bounds.minLng },
+        { lat: bounds.minLat, lng: bounds.maxLng }
+      );
+      state.roiPlanSpanM = Math.max(verticalM, horizontalM);
       state.start = latLngToIJ(state.startLatLng);
       state.end = latLngToIJ(state.endLatLng);
     }
@@ -3620,6 +3711,7 @@
       setMode("inspect");
       clearGoogleRouteCandidates(true);
       clearNaverRouteCandidates(true);
+      setRoiPlan(directRoutePlanLatLngs(), "direct");
       rebuildAoi(`set_${targetKey}`);
     }
 
@@ -4124,6 +4216,25 @@
       return state.naverRouteCandidates
         .slice()
         .sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+    }
+
+    function rebuildExternalRouteCandidates() {
+      const endpointKey = currentEndpointKey();
+      if (state.googleRouteEndpointKey === endpointKey && state.googleRawRoutes.length) {
+        state.googleRouteCandidates = state.googleRawRoutes
+          .map((route, index) => makeGoogleRouteCandidate(route, index))
+          .filter(Boolean);
+      } else {
+        state.googleRouteCandidates = [];
+      }
+
+      if (state.naverRouteEndpointKey === endpointKey && state.naverRawRoutes.length) {
+        state.naverRouteCandidates = state.naverRawRoutes
+          .map((route, index) => makeNaverRouteCandidate(route, index))
+          .filter(Boolean);
+      } else {
+        state.naverRouteCandidates = [];
+      }
     }
 
     function rankedExternalRouteCandidates() {
@@ -4876,11 +4987,14 @@
     }
 
     function updateAoiChip() {
-      const routeKm = state.startLatLng && state.endLatLng
-        ? L.latLng(state.startLatLng.lat, state.startLatLng.lng).distanceTo(L.latLng(state.endLatLng.lat, state.endLatLng.lng)) / 1000
-        : 0;
+      const routeKm = state.roiPlanDistanceM > 0
+        ? state.roiPlanDistanceM / 1000
+        : state.startLatLng && state.endLatLng
+          ? L.latLng(state.startLatLng.lat, state.startLatLng.lng).distanceTo(L.latLng(state.endLatLng.lat, state.endLatLng.lng)) / 1000
+          : 0;
+      const sourceLabel = roiPlanSourceLabel();
       document.getElementById("aoiChip").textContent =
-        `관심영역: 5.0km x 5.0km · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 거리 ${routeKm.toFixed(1)}km`;
+        `관심영역: ${sourceLabel} 주변 5.0km x 5.0km · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${routeKm.toFixed(1)}km`;
     }
 
     async function rebuildAoi(reason = "rebuild") {
@@ -4890,15 +5004,16 @@
       }
       state.rebuilding = true;
       state.pendingRebuild = false;
-      el.dataStatus.textContent = "중심 재계산";
+      el.dataStatus.textContent = `${roiPlanSourceLabel()} 기준 ROI 계산`;
 
-      updateAoiCenterFromEndpoints();
+      updateAoiCenterFromRoutePlan();
       updateEndpointMarkers();
       updateAoiChip();
       map.setView([state.center.lat, state.center.lng], map.getZoom(), { animate: true });
       syncNaverBaseView();
 
       el.dataStatus.textContent = "격자 생성";
+      rebuildExternalRouteCandidates();
       state.cells = createBaseGrid();
       if (state.routeLayer) {
         state.routeLayer.remove();
@@ -4952,6 +5067,7 @@
       installGoogleKeyFromUrl();
       installNaverProxyFromUrl();
       syncEndpointLatLngsFromCells();
+      setRoiPlan(directRoutePlanLatLngs(), "direct");
       setRouteInputValues();
       syncSpeedInputs();
       el.baseLayerSelect.value = state.baseLayer;
