@@ -9,7 +9,8 @@
       993,
       1488,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -21,7 +22,8 @@
       717,
       767,
       763
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -33,7 +35,8 @@
       994,
       1488,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -45,7 +48,8 @@
       996,
       702,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -57,7 +61,8 @@
       993,
       1488,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -69,7 +74,8 @@
       716,
       767,
       763
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -81,7 +87,8 @@
       992,
       1489,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "water",
@@ -93,7 +100,8 @@
       992,
       1488,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "stream",
@@ -105,7 +113,8 @@
       993,
       1489,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "stream",
@@ -117,7 +126,8 @@
       34,
       1489,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "stream",
@@ -129,7 +139,8 @@
       995,
       701,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "stream",
@@ -141,7 +152,8 @@
       993,
       1489,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "stream",
@@ -153,7 +165,8 @@
       994,
       1489,
       1535
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "bridge",
@@ -165,7 +178,8 @@
       1162,
       425,
       1293
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "bridge",
@@ -177,7 +191,8 @@
       989,
       719,
       1135
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "bridge",
@@ -189,7 +204,8 @@
       1161,
       425,
       1292
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "bridge",
@@ -201,7 +217,8 @@
       989,
       719,
       1135
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "forest",
@@ -213,7 +230,8 @@
       500,
       698,
       611
-    ]
+    ],
+    "tile": "full"
   },
   {
     "class": "forest",
@@ -225,7 +243,2231 @@
       404,
       1014,
       571
-    ]
+    ],
+    "tile": "full"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 8028,
+    "bbox": [
+      284,
+      21,
+      767,
+      289
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1349,
+    "bbox": [
+      720,
+      719,
+      765,
+      764
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 642,
+    "bbox": [
+      489,
+      753,
+      534,
+      767
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 7663,
+    "bbox": [
+      285,
+      22,
+      767,
+      288
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1509,
+    "bbox": [
+      280,
+      44,
+      418,
+      111
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 3813,
+    "bbox": [
+      638,
+      71,
+      750,
+      287
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 7877,
+    "bbox": [
+      281,
+      21,
+      767,
+      289
+    ],
+    "tile": "tile_0_0"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 5716,
+    "bbox": [
+      627,
+      51,
+      810,
+      304
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1778,
+    "bbox": [
+      915,
+      642,
+      1015,
+      767
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 2180,
+    "bbox": [
+      905,
+      334,
+      1029,
+      409
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1348,
+    "bbox": [
+      751,
+      265,
+      811,
+      305
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 5424,
+    "bbox": [
+      906,
+      336,
+      1098,
+      495
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1351,
+    "bbox": [
+      719,
+      719,
+      766,
+      763
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 2779,
+    "bbox": [
+      993,
+      418,
+      1098,
+      495
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 5475,
+    "bbox": [
+      632,
+      52,
+      810,
+      304
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1295,
+    "bbox": [
+      1062,
+      490,
+      1122,
+      553
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 506,
+    "bbox": [
+      576,
+      28,
+      609,
+      49
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 2545,
+    "bbox": [
+      915,
+      596,
+      1063,
+      767
+    ],
+    "tile": "tile_576_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 2765,
+    "bbox": [
+      993,
+      417,
+      1099,
+      495
+    ],
+    "tile": "tile_768_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1080,
+    "bbox": [
+      768,
+      271,
+      811,
+      305
+    ],
+    "tile": "tile_768_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 5466,
+    "bbox": [
+      906,
+      334,
+      1099,
+      494
+    ],
+    "tile": "tile_768_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 2504,
+    "bbox": [
+      915,
+      598,
+      1061,
+      767
+    ],
+    "tile": "tile_768_0"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1316,
+    "bbox": [
+      1063,
+      488,
+      1122,
+      553
+    ],
+    "tile": "tile_768_0"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 6559,
+    "bbox": [
+      717,
+      992,
+      767,
+      1131
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 44992,
+    "bbox": [
+      206,
+      993,
+      767,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1313,
+    "bbox": [
+      720,
+      718,
+      765,
+      762
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 6636,
+    "bbox": [
+      716,
+      991,
+      767,
+      1131
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 4382,
+    "bbox": [
+      542,
+      760,
+      767,
+      847
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 40619,
+    "bbox": [
+      206,
+      993,
+      705,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1482,
+    "bbox": [
+      688,
+      812,
+      767,
+      848
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 873,
+    "bbox": [
+      487,
+      753,
+      534,
+      775
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1238,
+    "bbox": [
+      625,
+      785,
+      691,
+      819
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1852,
+    "bbox": [
+      541,
+      758,
+      625,
+      800
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "lake",
+    "score": 1.0,
+    "area_px": 1335,
+    "bbox": [
+      719,
+      718,
+      765,
+      762
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "lake",
+    "score": 1.0,
+    "area_px": 45977,
+    "bbox": [
+      206,
+      993,
+      767,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1349,
+    "bbox": [
+      719,
+      718,
+      765,
+      763
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 6540,
+    "bbox": [
+      717,
+      991,
+      767,
+      1131
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 4661,
+    "bbox": [
+      541,
+      759,
+      767,
+      847
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 41699,
+    "bbox": [
+      206,
+      993,
+      767,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1482,
+    "bbox": [
+      688,
+      812,
+      767,
+      848
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 870,
+    "bbox": [
+      487,
+      753,
+      534,
+      774
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1910,
+    "bbox": [
+      540,
+      757,
+      625,
+      800
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 6610,
+    "bbox": [
+      717,
+      991,
+      767,
+      1131
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 40814,
+    "bbox": [
+      206,
+      993,
+      767,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 6586,
+    "bbox": [
+      716,
+      992,
+      767,
+      1131
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 46460,
+    "bbox": [
+      206,
+      993,
+      767,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 41292,
+    "bbox": [
+      206,
+      993,
+      767,
+      1343
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 319,
+    "bbox": [
+      531,
+      747,
+      543,
+      789
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 2038,
+    "bbox": [
+      293,
+      926,
+      499,
+      1054
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1188,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 258,
+    "bbox": [
+      347,
+      942,
+      385,
+      963
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1462,
+    "bbox": [
+      285,
+      1143,
+      427,
+      1293
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 647,
+    "bbox": [
+      530,
+      707,
+      547,
+      789
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 417,
+    "bbox": [
+      427,
+      737,
+      468,
+      792
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1780,
+    "bbox": [
+      567,
+      766,
+      765,
+      889
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1407,
+    "bbox": [
+      289,
+      1150,
+      427,
+      1293
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 300,
+    "bbox": [
+      531,
+      748,
+      543,
+      788
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 255,
+    "bbox": [
+      347,
+      942,
+      385,
+      963
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1193,
+    "bbox": [
+      707,
+      989,
+      718,
+      1132
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1970,
+    "bbox": [
+      293,
+      926,
+      499,
+      1054
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 398,
+    "bbox": [
+      427,
+      737,
+      468,
+      791
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 1174,
+    "bbox": [
+      707,
+      990,
+      718,
+      1130
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 250,
+    "bbox": [
+      347,
+      943,
+      385,
+      963
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 1429,
+    "bbox": [
+      286,
+      1145,
+      426,
+      1292
+    ],
+    "tile": "tile_0_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 5118,
+    "bbox": [
+      576,
+      766,
+      908,
+      863
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 72272,
+    "bbox": [
+      576,
+      605,
+      1293,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 67455,
+    "bbox": [
+      576,
+      992,
+      1292,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 66769,
+    "bbox": [
+      576,
+      992,
+      1292,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1342,
+    "bbox": [
+      719,
+      718,
+      765,
+      763
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 2892,
+    "bbox": [
+      908,
+      643,
+      1015,
+      839
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 10211,
+    "bbox": [
+      576,
+      993,
+      707,
+      1155
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 3122,
+    "bbox": [
+      690,
+      812,
+      908,
+      863
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 4859,
+    "bbox": [
+      576,
+      766,
+      908,
+      863
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 3587,
+    "bbox": [
+      908,
+      597,
+      1062,
+      838
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 57765,
+    "bbox": [
+      718,
+      993,
+      1292,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 8939,
+    "bbox": [
+      576,
+      598,
+      1060,
+      862
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "lake",
+    "score": 1.0,
+    "area_px": 67174,
+    "bbox": [
+      576,
+      991,
+      1292,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1387,
+    "bbox": [
+      719,
+      718,
+      765,
+      764
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 10040,
+    "bbox": [
+      576,
+      993,
+      707,
+      1155
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 4841,
+    "bbox": [
+      576,
+      766,
+      908,
+      863
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 67089,
+    "bbox": [
+      576,
+      992,
+      1292,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 1406,
+    "bbox": [
+      719,
+      718,
+      765,
+      764
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 4993,
+    "bbox": [
+      576,
+      766,
+      908,
+      863
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 66936,
+    "bbox": [
+      576,
+      992,
+      1292,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 73216,
+    "bbox": [
+      576,
+      603,
+      1293,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 67676,
+    "bbox": [
+      576,
+      992,
+      1293,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 66740,
+    "bbox": [
+      576,
+      992,
+      1293,
+      1343
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "trail",
+    "prompt": "trail",
+    "score": 1.0,
+    "area_px": 573,
+    "bbox": [
+      855,
+      1047,
+      909,
+      1145
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1189,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1189,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 1183,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_576_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 5382,
+    "bbox": [
+      768,
+      597,
+      1062,
+      862
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 52416,
+    "bbox": [
+      768,
+      999,
+      1293,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1667,
+    "bbox": [
+      768,
+      836,
+      908,
+      863
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 5174,
+    "bbox": [
+      768,
+      597,
+      1060,
+      862
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 3006,
+    "bbox": [
+      910,
+      598,
+      1060,
+      795
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 52203,
+    "bbox": [
+      768,
+      999,
+      1292,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "lake",
+    "score": 1.0,
+    "area_px": 52277,
+    "bbox": [
+      768,
+      999,
+      1293,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 52219,
+    "bbox": [
+      768,
+      999,
+      1293,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 5402,
+    "bbox": [
+      768,
+      597,
+      1062,
+      863
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 52184,
+    "bbox": [
+      768,
+      999,
+      1293,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 5315,
+    "bbox": [
+      768,
+      597,
+      1063,
+      863
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 52394,
+    "bbox": [
+      768,
+      999,
+      1294,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 5124,
+    "bbox": [
+      768,
+      597,
+      1063,
+      863
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 52215,
+    "bbox": [
+      768,
+      999,
+      1293,
+      1343
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "trail",
+    "prompt": "trail",
+    "score": 1.0,
+    "area_px": 553,
+    "bbox": [
+      855,
+      1049,
+      908,
+      1145
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "trail",
+    "prompt": "trail",
+    "score": 1.0,
+    "area_px": 726,
+    "bbox": [
+      789,
+      1023,
+      837,
+      1120
+    ],
+    "tile": "tile_768_576"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 6775,
+    "bbox": [
+      717,
+      992,
+      767,
+      1134
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 66551,
+    "bbox": [
+      44,
+      768,
+      767,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 62538,
+    "bbox": [
+      44,
+      993,
+      707,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 6728,
+    "bbox": [
+      716,
+      991,
+      767,
+      1131
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 32922,
+    "bbox": [
+      44,
+      1237,
+      408,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 62028,
+    "bbox": [
+      44,
+      994,
+      706,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1636,
+    "bbox": [
+      540,
+      768,
+      625,
+      800
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1533,
+    "bbox": [
+      686,
+      812,
+      767,
+      848
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1559,
+    "bbox": [
+      687,
+      812,
+      767,
+      849
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 6736,
+    "bbox": [
+      717,
+      991,
+      767,
+      1134
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 62350,
+    "bbox": [
+      44,
+      993,
+      708,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 6824,
+    "bbox": [
+      717,
+      991,
+      767,
+      1134
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 62311,
+    "bbox": [
+      44,
+      993,
+      707,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 6807,
+    "bbox": [
+      717,
+      992,
+      767,
+      1134
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 70712,
+    "bbox": [
+      43,
+      768,
+      767,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 62586,
+    "bbox": [
+      43,
+      993,
+      708,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 62165,
+    "bbox": [
+      44,
+      993,
+      707,
+      1535
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 151,
+    "bbox": [
+      531,
+      768,
+      539,
+      788
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1191,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1540,
+    "bbox": [
+      284,
+      1118,
+      425,
+      1291
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 2091,
+    "bbox": [
+      294,
+      926,
+      499,
+      1053
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 256,
+    "bbox": [
+      347,
+      942,
+      385,
+      963
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 181,
+    "bbox": [
+      428,
+      768,
+      447,
+      791
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1908,
+    "bbox": [
+      567,
+      768,
+      761,
+      890
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 152,
+    "bbox": [
+      531,
+      768,
+      539,
+      788
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 2020,
+    "bbox": [
+      294,
+      926,
+      499,
+      1053
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1192,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 256,
+    "bbox": [
+      347,
+      942,
+      385,
+      963
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 171,
+    "bbox": [
+      428,
+      768,
+      446,
+      790
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1748,
+    "bbox": [
+      567,
+      770,
+      761,
+      889
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1498,
+    "bbox": [
+      284,
+      1129,
+      425,
+      1291
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 1183,
+    "bbox": [
+      707,
+      990,
+      718,
+      1131
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 251,
+    "bbox": [
+      347,
+      943,
+      384,
+      963
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 1460,
+    "bbox": [
+      284,
+      1134,
+      424,
+      1290
+    ],
+    "tile": "tile_0_768"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 79373,
+    "bbox": [
+      576,
+      992,
+      1343,
+      1495
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 5233,
+    "bbox": [
+      576,
+      768,
+      909,
+      863
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 9972,
+    "bbox": [
+      576,
+      993,
+      708,
+      1156
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 77670,
+    "bbox": [
+      576,
+      993,
+      1343,
+      1494
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 3376,
+    "bbox": [
+      687,
+      812,
+      909,
+      863
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 79223,
+    "bbox": [
+      576,
+      992,
+      1343,
+      1495
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 3400,
+    "bbox": [
+      686,
+      812,
+      909,
+      864
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 78682,
+    "bbox": [
+      576,
+      992,
+      1343,
+      1495
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 79391,
+    "bbox": [
+      576,
+      992,
+      1343,
+      1496
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 78105,
+    "bbox": [
+      576,
+      992,
+      1343,
+      1495
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "trail",
+    "prompt": "narrow path",
+    "score": 1.0,
+    "area_px": 1577,
+    "bbox": [
+      576,
+      770,
+      761,
+      886
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "trail",
+    "prompt": "narrow path",
+    "score": 1.0,
+    "area_px": 7694,
+    "bbox": [
+      576,
+      976,
+      1343,
+      1374
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "trail",
+    "prompt": "narrow path",
+    "score": 1.0,
+    "area_px": 465,
+    "bbox": [
+      1221,
+      1441,
+      1268,
+      1503
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "trail",
+    "prompt": "narrow path",
+    "score": 1.0,
+    "area_px": 1065,
+    "bbox": [
+      1192,
+      1184,
+      1260,
+      1271
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "bridge",
+    "score": 1.0,
+    "area_px": 1200,
+    "bbox": [
+      706,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "road bridge",
+    "score": 1.0,
+    "area_px": 1202,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "bridge",
+    "prompt": "small bridge",
+    "score": 1.0,
+    "area_px": 1184,
+    "bbox": [
+      707,
+      990,
+      718,
+      1132
+    ],
+    "tile": "tile_576_768"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 1832,
+    "bbox": [
+      768,
+      835,
+      909,
+      863
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "river",
+    "score": 1.0,
+    "area_px": 75201,
+    "bbox": [
+      768,
+      999,
+      1492,
+      1535
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 1801,
+    "bbox": [
+      768,
+      836,
+      909,
+      863
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "water",
+    "score": 1.0,
+    "area_px": 74807,
+    "bbox": [
+      768,
+      999,
+      1492,
+      1535
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 1761,
+    "bbox": [
+      768,
+      836,
+      908,
+      863
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "reservoir",
+    "score": 1.0,
+    "area_px": 74899,
+    "bbox": [
+      768,
+      999,
+      1492,
+      1535
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 1836,
+    "bbox": [
+      768,
+      835,
+      909,
+      863
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "water",
+    "prompt": "canal",
+    "score": 1.0,
+    "area_px": 74755,
+    "bbox": [
+      768,
+      999,
+      1492,
+      1535
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 1844,
+    "bbox": [
+      768,
+      835,
+      909,
+      863
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "small river",
+    "score": 1.0,
+    "area_px": 75094,
+    "bbox": [
+      768,
+      998,
+      1493,
+      1535
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 1845,
+    "bbox": [
+      768,
+      835,
+      909,
+      864
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "stream",
+    "prompt": "narrow water channel",
+    "score": 1.0,
+    "area_px": 74853,
+    "bbox": [
+      768,
+      999,
+      1493,
+      1535
+    ],
+    "tile": "tile_768_768"
+  },
+  {
+    "class": "trail",
+    "prompt": "trail",
+    "score": 1.0,
+    "area_px": 572,
+    "bbox": [
+      854,
+      1049,
+      908,
+      1146
+    ],
+    "tile": "tile_768_768"
   },
   {
     "class": "mountain_road",
@@ -267,10 +2509,10 @@
     "class": "mountain_road",
     "prompt": "image_linear_refinement",
     "score": 0.62,
-    "area_px": 1144,
+    "area_px": 1026,
     "bbox": [
-      320,
-      96,
+      326,
+      102,
       354,
       215
     ]
@@ -693,6 +2935,18 @@
       857,
       8,
       878
+    ]
+  },
+  {
+    "class": "mountain_road",
+    "prompt": "image_linear_refinement",
+    "score": 0.62,
+    "area_px": 38,
+    "bbox": [
+      335,
+      857,
+      339,
+      877
     ]
   },
   {
