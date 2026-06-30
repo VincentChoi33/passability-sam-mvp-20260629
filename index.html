@@ -2995,14 +2995,15 @@
 
     function weakSmoothDisplayRoute(route) {
       if (route.length <= 3) return route;
-      const out = route.map(p => ({ i: p.i, j: p.j }));
+      const snapped = route.map(p => roadSnappedDisplayPoint(p));
+      const out = snapped.map(p => ({ i: p.i, j: p.j }));
       const strength = 0.16;
       const maxOffset = 0.38;
       for (let n = 1; n < route.length - 1; n++) {
-        const p = route[n];
-        if (isHardDisplayAnchor(p)) continue;
-        const prev = route[n - 1];
-        const next = route[n + 1];
+        if (isHardDisplayAnchor(route[n])) continue;
+        const p = snapped[n];
+        const prev = snapped[n - 1];
+        const next = snapped[n + 1];
         const targetI = p.i + (prev.i + next.i - 2 * p.i) * strength;
         const targetJ = p.j + (prev.j + next.j - 2 * p.j) * strength;
         const di = targetI - p.i;
@@ -3016,6 +3017,50 @@
         };
       }
       return out;
+    }
+
+    function roadSnappedDisplayPoint(p) {
+      if (isHardDisplayAnchor(p)) return { i: p.i, j: p.j };
+      const cell = state.cells[idx(p.i, p.j)];
+      const input = effectiveCellInputs(cell);
+      const target = nearbyRoadCentroid(p, input.road || input.waterCrossing ? 4 : 3);
+      if (!target) return { i: p.i, j: p.j };
+      const di = target.i - p.i;
+      const dj = target.j - p.j;
+      const dist = Math.hypot(di, dj);
+      if (dist <= 0.01) return { i: p.i, j: p.j };
+      const maxSnap = input.road || input.waterCrossing ? 0.72 : 0.48;
+      const pull = input.road || input.waterCrossing ? 0.5 : 0.34;
+      const offset = Math.min(maxSnap, dist * pull);
+      return {
+        i: p.i + di / dist * offset,
+        j: p.j + dj / dist * offset
+      };
+    }
+
+    function nearbyRoadCentroid(p, radius) {
+      let sumI = 0;
+      let sumJ = 0;
+      let total = 0;
+      for (let dj = -radius; dj <= radius; dj++) {
+        for (let di = -radius; di <= radius; di++) {
+          const i = p.i + di;
+          const j = p.j + dj;
+          if (!inGrid(i, j)) continue;
+          const dist = Math.hypot(di, dj);
+          if (dist > radius) continue;
+          const near = state.cells[idx(i, j)];
+          const nearInput = effectiveCellInputs(near);
+          if (!nearInput.road && !nearInput.waterCrossing) continue;
+          const corridor = roadCorridorSupport(near);
+          const bridgeBoost = nearInput.waterCrossing || nearInput.roadClass === "sam3_bridge" ? 1.8 : 1;
+          const weight = bridgeBoost * (0.55 + corridor) / (0.7 + dist);
+          sumI += i * weight;
+          sumJ += j * weight;
+          total += weight;
+        }
+      }
+      return total > 0 ? { i: sumI / total, j: sumJ / total } : null;
     }
 
     function isHardDisplayAnchor(p) {
@@ -3337,14 +3382,19 @@
         bonus += input.crossingStatus === "confirmed" ? 3.4 : 1.75;
       }
       if (input.road) {
+        const corridor = roadCorridorSupport(cell);
         bonus += 0.9;
         if (input.roadClass === "sam3_bridge") bonus += 2.4;
         if (input.roadClass === "image_road") bonus += 0.85;
         if (input.roadClass === "mountain_road") bonus += 0.55;
         if (input.roadClass === "path" && state.vehicleKey === "person") bonus += 0.62;
-        bonus += roadCorridorSupport(cell) * 1.05;
-      } else if (state.vehicleKey !== "person" && nearbyRoadSupport(cell) > 0.2) {
-        bonus -= 0.45;
+        bonus += corridor * 1.85;
+      } else {
+        const nearRoad = nearbyRoadSupport(cell, true);
+        if (nearRoad > 0.12) {
+          const nearRoadPenalty = state.vehicleKey === "person" ? 0.75 : 1.45;
+          bonus -= nearRoad * nearRoadPenalty;
+        }
       }
       if (input.hydroClass === "dem_stream" && !input.road && !input.waterCrossing) bonus -= 0.55;
       return bonus;
