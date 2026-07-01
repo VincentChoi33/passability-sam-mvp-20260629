@@ -2841,8 +2841,9 @@
       const meters = state.samDataset?.meta?.meters;
       if (grid && (Number(grid.n) !== GRID_N || Number(grid.cellM) !== CELL_M)) return false;
       if (meters && Math.abs(Number(meters.width) - GRID_N * CELL_M) > CELL_M) return false;
-      return Math.abs(center.lat - state.center.lat) < 0.002 &&
-        Math.abs(center.lng - state.center.lng) < 0.002;
+      const clientRoiKey = state.samDataset?.meta?.clientRoiKey || state.samDataset?.__clientRoiKey || "";
+      if (clientRoiKey) return clientRoiKey === currentSamRoiKey();
+      return geoDistanceMeters(center, state.center) <= CELL_M * 0.75;
     }
 
     function currentAoiBbox() {
@@ -2977,8 +2978,11 @@
         });
         const grid = await resolveSamInferenceResponse(data, responseUrl);
         if (!isSamGridPayload(grid)) throw new Error("SAM inference result is not a segmentation grid");
+        const roiKey = currentSamRoiKey();
+        grid.__clientRoiKey = roiKey;
+        grid.meta = { ...(grid.meta || {}), clientRoiKey: roiKey };
         state.samDataset = grid;
-        state.samInferenceEndpointKey = currentSamRoiKey();
+        state.samInferenceEndpointKey = roiKey;
         updateSamInferenceStatus("ready");
         return true;
       } catch (err) {
