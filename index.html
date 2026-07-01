@@ -986,9 +986,9 @@
         <div class="control">
           <label for="baseLayerSelect">배경지도</label>
           <select id="baseLayerSelect">
-            <option value="naver" selected>네이버 위성지도</option>
+            <option value="imagery" selected>외부 위성사진 백업</option>
+            <option value="naver">네이버 위성지도</option>
             <option value="osm">일반 지도</option>
-            <option value="imagery">외부 위성사진 백업</option>
           </select>
           <label for="analysisLayerSelect">판독 레이어</label>
           <select id="analysisLayerSelect">
@@ -1129,7 +1129,7 @@
           </div>
           <div class="explain-block">
             <h3>위성사진 타일</h3>
-            <p>기본 배경은 Naver Maps JavaScript API의 위성지도입니다. 브라우저는 현재 화면 위치와 줌 레벨에 맞는 네이버 위성 타일을 받아 지도처럼 이어 붙입니다. 이 MVP에서는 네이버 위성지도는 화면 확인용 배경으로 쓰고, SAM3.1 판독은 develop 서버에서 같은 ROI 좌표 조건으로 별도 위성영상 export와 segmentation을 실행합니다.</p>
+            <p>기본 배경은 외부 위성사진 백업 타일입니다. 브라우저는 현재 화면 위치와 줌 레벨에 맞는 위성사진 타일을 받아 지도처럼 이어 붙입니다. 네이버 위성지도도 배경 선택지로 남겨두지만, 길찾기는 배경지도와 별개로 Naver Directions 도로 후보를 서버에서 받아와 우리 10m 격자로 재평가합니다.</p>
           </div>
           <div class="explain-block">
             <h3>Leaflet의 역할</h3>
@@ -1141,7 +1141,7 @@
           </div>
           <div class="explain-block">
             <h3>영상/DEM 판독 MVP</h3>
-            <p>이번 버전은 네이버 위성지도 배경 위에 DEM 경사와 영상분할 결과를 같은 10m 격자에 맞춰 올리는 구조입니다. 영상분할 레이어는 실제 모델 출력처럼 각 칸에 도로, 물, 건물, 숲, 초지, 농경지, 나지, 그림자, 불확실 비율과 신뢰도를 붙입니다. 현재 브라우저는 판독 결과를 표시하고, 실제 판독값은 develop 서버의 위성영상 export와 SAM3.1 segmentation 결과로 교체됩니다.</p>
+            <p>이번 버전은 외부 위성사진 백업 배경 위에 DEM 경사와 영상분할 결과를 같은 10m 격자에 맞춰 올리는 구조입니다. 영상분할 레이어는 실제 모델 출력처럼 각 칸에 도로, 물, 건물, 숲, 초지, 농경지, 나지, 그림자, 불확실 비율과 신뢰도를 붙입니다. 현재 브라우저는 판독 결과를 표시하고, 실제 판독값은 develop 서버의 위성영상 export와 SAM3.1 segmentation 결과로 교체됩니다.</p>
           </div>
           <div class="explain-block">
             <h3>수계와 교차점</h3>
@@ -1284,7 +1284,7 @@
             </button>
           </div>
         </div>
-        <button id="routeBtn" class="route-recalc">경로 다시 계산</button>
+        <button id="routeBtn" class="route-recalc">Naver 기반 경로 계산</button>
       </div>
       <div class="topbar">
         <div id="aoiChip" class="chip">관심영역: 5km x 5km, 10m 격자</div>
@@ -1437,7 +1437,7 @@
       aoiSizeKm: DEFAULT_AOI_SIZE_KM,
       aoiSizeMode: DEFAULT_AOI_SIZE_MODE,
       pendingAoiSizeMode: null,
-      baseLayer: "naver",
+      baseLayer: "imagery",
       analysisLayer: "passability",
       useVisionSegmentation: true,
       samDataset: null,
@@ -2039,7 +2039,12 @@
         state.naverRouteCandidates = [];
         state.naverRouteEndpointKey = "";
         updateNaverRouteStatus("error");
-        await recomputeRoute();
+        if (state.endpointDirty) {
+          setRoiPlanForCurrentEndpoints();
+          await rebuildAoi("naver_route_fallback");
+          return;
+        }
+        await recomputeRoute("Naver 실패 · A* 우회 경로 계산");
       }
     }
 
@@ -4272,12 +4277,7 @@
       gridLayer._draw();
     });
     el.routeBtn.addEventListener("click", async () => {
-      if (state.endpointDirty) {
-        setRoiPlanForCurrentEndpoints();
-        await rebuildAoi("manual_endpoint_route");
-        return;
-      }
-      await recomputeRoute();
+      await refreshNaverRouteCandidates();
     });
     el.googleKeyBtn.addEventListener("click", async () => {
       if (!promptForGoogleKey()) return;
@@ -4668,7 +4668,7 @@
       setMapBusy(active, "최적경로 탐색중", detail);
       el.routeBtn.disabled = active;
       el.routeBtn.classList.toggle("is-loading", active);
-      el.routeBtn.textContent = active ? "최적경로 탐색중" : "경로 다시 계산";
+      el.routeBtn.textContent = active ? "최적경로 탐색중" : "Naver 기반 경로 계산";
       el.routeOptionButtons.forEach(button => {
         if (active) button.disabled = true;
       });
