@@ -1467,6 +1467,8 @@
       naverRouteEndpointKey: "",
       naverRouteStatus: "idle",
       naverProxyUrl: "",
+      developRoutePlan: null,
+      developRoutePlanEndpointKey: "",
       naverBaseMap: null,
       naverMapLoading: false,
       naverMapError: "",
@@ -1556,6 +1558,7 @@
     const SAM_API_STORAGE = "neotactic_sam_roi_api";
     const DEFAULT_SAM_INFERENCE_URL = "https://arg-founder-production-attended.trycloudflare.com/sam/roi";
     const DEFAULT_NAVER_DIRECTIONS_PROXY = "https://arg-founder-production-attended.trycloudflare.com/naver/directions";
+    const DEFAULT_DEVELOP_ROUTE_PLAN_URL = "https://arg-founder-production-attended.trycloudflare.com/route/plan";
     let googleLoadPromise = null;
 
     function installGoogleKeyFromUrl() {
@@ -1631,8 +1634,8 @@
       if (message) state.naverRouteStatus = message;
       const labels = {
         idle: state.naverProxyUrl ? "서버 연결 대기" : "서버 대기",
-        routing: "후보 계산 중",
-        scored: "후보 평가 완료",
+        routing: "develop 계산 중",
+        scored: "develop 계산 완료",
         empty: "도로후보 없음",
         error: "서버 실패",
         stale: "후보 갱신 필요"
@@ -1740,6 +1743,8 @@
       state.naverRawRoutes = [];
       state.naverRouteCandidates = [];
       state.naverRouteEndpointKey = "";
+      state.developRoutePlan = null;
+      state.developRoutePlanEndpointKey = "";
       if (markStale && state.naverProxyUrl) updateNaverRouteStatus("stale");
     }
 
@@ -1784,6 +1789,21 @@
       state.naverProxyUrl = DEFAULT_NAVER_DIRECTIONS_PROXY;
       updateNaverRouteStatus("idle");
       return state.naverProxyUrl;
+    }
+
+    function developRoutePlanUrl() {
+      const base = ensureNaverProxyUrl() || DEFAULT_NAVER_DIRECTIONS_PROXY;
+      try {
+        const url = new URL(base, window.location.href);
+        if (url.pathname.endsWith("/naver/directions")) {
+          url.pathname = url.pathname.replace(/\/naver\/directions$/, "/route/plan");
+          url.search = "";
+          return url.toString();
+        }
+      } catch {
+        return DEFAULT_DEVELOP_ROUTE_PLAN_URL;
+      }
+      return DEFAULT_DEVELOP_ROUTE_PLAN_URL;
     }
 
     function ensureSamApiUrl() {
@@ -1996,7 +2016,10 @@
             latLngs,
             distanceMeters: summary.distance || route.distanceMeters || 0,
             duration: summary.duration || route.duration || "",
-            description: `${optionLabel || route.routeKey || "traoptimal"}${index > 0 ? `-${index + 1}` : ""}`
+            durationMs: summary.duration || route.durationMs || 0,
+            description: route.description || `${optionLabel || route.routeKey || "traoptimal"}${index > 0 ? `-${index + 1}` : ""}`,
+            vehicleEtas: route.vehicleEtas || null,
+            serverRouteId: route.serverRouteId || ""
           };
         })
         .filter(route => route.latLngs.length >= 2);
@@ -2013,8 +2036,31 @@
         displayLatLngs: latLngs.map(p => [p.lat, p.lng]),
         naverDistanceMeters: rawRoute.distanceMeters || 0,
         naverDuration: rawRoute.duration || "",
-        description: rawRoute.description || ""
+        description: rawRoute.description || "",
+        vehicleEtas: rawRoute.vehicleEtas || null,
+        serverRouteId: rawRoute.serverRouteId || ""
       });
+    }
+
+    async function computeDevelopRoutePlanViaServer() {
+      const routePlanUrl = developRoutePlanUrl();
+      const start = `${state.startLatLng.lng},${state.startLatLng.lat}`;
+      const goal = `${state.endLatLng.lng},${state.endLatLng.lat}`;
+      const url = appendRouteProxyParams(routePlanUrl, {
+        start,
+        goal,
+        vehicle: state.vehicleKey,
+        roi: "endpoint_midpoint_5km"
+      });
+      const response = await fetch(url, { method: "GET" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || (data.status && data.status !== "ok")) {
+        throw new Error(data.message || data.error || `develop route plan ${response.status}`);
+      }
+      const routes = normalizeNaverDirectionsPayload({ routes: data.routes || [] }, "develop");
+      state.developRoutePlan = data;
+      state.developRoutePlanEndpointKey = currentEndpointKey();
+      return routes;
     }
 
     async function computeNaverRoutesViaProxy() {
@@ -2051,7 +2097,15 @@
       try {
         if (!ensureNaverProxyUrl()) return;
         updateNaverRouteStatus("routing");
-        const rawRoutes = await computeNaverRoutesViaProxy();
+        let rawRoutes = [];
+        try {
+          rawRoutes = await computeDevelopRoutePlanViaServer();
+        } catch (planErr) {
+          console.warn("develop route plan failed, falling back to Naver directions proxy:", planErr);
+          state.developRoutePlan = null;
+          state.developRoutePlanEndpointKey = "";
+          rawRoutes = await computeNaverRoutesViaProxy();
+        }
         state.naverRawRoutes = rawRoutes;
         state.naverRouteEndpointKey = currentEndpointKey();
         if (rawRoutes.length) {
@@ -5580,9 +5634,13 @@
     }
 
     function updateVehicleCompare(route) {
+      const meta = routeMeta(route);
       for (const button of el.vehicleCompareButtons) {
         const vehicleKey = button.dataset.vehicleKey;
-        const summary = summarizeRouteTimeForVehicle(route || [], vehicleKey);
+        const serverEta = meta.vehicleEtas?.[vehicleKey];
+        const summary = serverEta && Number.isFinite(Number(serverEta.minutes))
+          ? { minutes: Number(serverEta.minutes), avgSpeed: Number(serverEta.avgSpeedKph || 0), source: "develop" }
+          : summarizeRouteTimeForVehicle(route || [], vehicleKey);
         const timeEl = button.querySelector(".mode-time");
         if (timeEl) timeEl.textContent = Number.isFinite(summary.minutes) ? formatDuration(summary.minutes) : "-";
         button.classList.toggle("active", vehicleKey === state.vehicleKey);
@@ -5593,10 +5651,17 @@
     function updateRouteMetrics(route) {
       const summary = summarizeRoute(route);
       const meta = routeMeta(route);
+      const serverEta = meta.vehicleEtas?.[state.vehicleKey];
+      const displayMinutes = serverEta && Number.isFinite(Number(serverEta.minutes))
+        ? Number(serverEta.minutes)
+        : summary.minutes;
+      const displaySpeed = serverEta && Number.isFinite(Number(serverEta.avgSpeedKph))
+        ? Number(serverEta.avgSpeedKph)
+        : summary.avgSpeed;
       updateVehicleCompare(route);
       el.distanceMetric.textContent = `${(summary.dist / 1000).toFixed(2)} km`;
-      el.costMetric.textContent = formatDuration(summary.minutes);
-      el.speedMetric.textContent = `${summary.avgSpeed.toFixed(1)} km/h`;
+      el.costMetric.textContent = formatDuration(displayMinutes);
+      el.speedMetric.textContent = `${displaySpeed.toFixed(1)} km/h`;
       el.difficultyMetric.textContent = `${summary.meanCost.toFixed(1)} ${difficultyLabel(summary.meanCost)}`;
       el.yellowMetric.textContent = `${summary.caution}/${summary.traceLength}`;
       el.reasonBox.innerHTML = `
@@ -5606,7 +5671,7 @@
         </div>
         <ul class="reason-list">
           <li>경로 출처: ${escapeHtml(routeSourceLabel(meta))}</li>
-          ${meta.source === "naver" ? "<li>적용 방식: Naver 경로를 기본으로 두고, SAM/DEM/수계/차단구역/차량 조건을 덮어 평가</li>" : ""}
+          ${meta.source === "naver" ? "<li>적용 방식: develop route plan이 Naver 후보와 이동주체별 ETA를 계산하고, 브라우저는 SAM/DEM wrapper를 표시</li>" : ""}
           ${meta.source === "astar" ? "<li>적용 방식: Naver 후보가 위험할 때 비교하는 우리 A* 우회 참고안</li>" : ""}
           ${meta.description ? `<li>도로 후보: ${escapeHtml(meta.description)}</li>` : ""}
           <li>표시점/검사격자: ${summary.waypointLength}/${summary.traceLength}</li>
