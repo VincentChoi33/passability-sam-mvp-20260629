@@ -1446,6 +1446,7 @@
       samApiUrl: "",
       samInferenceStatus: "idle",
       samInferenceBusy: false,
+      pendingSamInference: false,
       samInferenceEndpointKey: "",
       hydroStats: { stream: 0, drainage: 0, valley: 0 },
       center: { ...DEFAULT_CENTER },
@@ -2871,8 +2872,10 @@
 
     function currentSamRequestPayload() {
       const bbox = currentAoiBbox();
+      const clientRoiKey = currentSamRoiKey();
       return {
         requestId: `sam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        clientRoiKey,
         center: { ...state.center },
         bbox,
         meters: { width: GRID_N * CELL_M, height: GRID_N * CELL_M },
@@ -2962,9 +2965,16 @@
         updateSamInferenceStatus(state.samDataset ? "stale" : "missing");
         return false;
       }
-      if (state.samInferenceBusy) return false;
+      if (state.samInferenceBusy) {
+        state.pendingSamInference = true;
+        updateSamInferenceStatus("queued");
+        return false;
+      }
 
+      const requestRoiKey = currentSamRoiKey();
       state.samInferenceBusy = true;
+      state.pendingSamInference = false;
+      state.samInferenceEndpointKey = requestRoiKey;
       updateSamInferenceStatus("queued");
       setMapBusy(true, "최적경로 파악중", "산악지·수계·건물·도로 판독을 시작합니다.");
       await nextFrame();
@@ -2978,11 +2988,15 @@
         });
         const grid = await resolveSamInferenceResponse(data, responseUrl);
         if (!isSamGridPayload(grid)) throw new Error("SAM inference result is not a segmentation grid");
-        const roiKey = currentSamRoiKey();
-        grid.__clientRoiKey = roiKey;
-        grid.meta = { ...(grid.meta || {}), clientRoiKey: roiKey };
+        if (requestRoiKey !== currentSamRoiKey()) {
+          state.pendingSamInference = true;
+          updateSamInferenceStatus("stale");
+          return false;
+        }
+        grid.__clientRoiKey = requestRoiKey;
+        grid.meta = { ...(grid.meta || {}), clientRoiKey: requestRoiKey };
         state.samDataset = grid;
-        state.samInferenceEndpointKey = roiKey;
+        state.samInferenceEndpointKey = requestRoiKey;
         updateSamInferenceStatus("ready");
         return true;
       } catch (err) {
@@ -2994,6 +3008,14 @@
         state.samInferenceBusy = false;
         setMapBusy(false, "최적경로 탐색중", "10m 격자 비용맵에서 후보 경로를 계산 중입니다.");
         updateSamInferenceStatus();
+        if (state.pendingSamInference && state.cells.length && !samDatasetMatchesCurrentAoi()) {
+          state.pendingSamInference = false;
+          window.setTimeout(() => {
+            refreshSamInferenceForCurrentAoi().catch(err => {
+              console.warn("Queued SAM inference failed:", err);
+            });
+          }, 0);
+        }
       }
     }
 
