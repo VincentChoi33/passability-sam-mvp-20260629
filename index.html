@@ -1484,6 +1484,7 @@
       endpointDirty: false,
       rebuilding: false,
       pendingRebuild: false,
+      endpointVersion: 0,
       routeSearchBusy: false,
       pendingRouteSearch: false,
       routeSearchPreviousStatus: "",
@@ -2053,7 +2054,11 @@
         const rawRoutes = await computeNaverRoutesViaProxy();
         state.naverRawRoutes = rawRoutes;
         state.naverRouteEndpointKey = currentEndpointKey();
-        setRoiPlanFromRawRoutes(rawRoutes, "naver");
+        if (rawRoutes.length) {
+          setRoiPlanFromRawRoutes(rawRoutes, "naver");
+        } else {
+          setRoiPlan(directRoutePlanLatLngs(), "direct");
+        }
         state.activeRouteIndex = 0;
         await rebuildAoi("naver_route_roi");
         updateNaverRouteStatus(state.naverRouteCandidates.length ? "scored" : "empty");
@@ -4306,7 +4311,24 @@
       updateRouteOptionButtons();
     }
 
+    function resetBusyStateForEndpointChange() {
+      state.pendingRebuild = false;
+      state.pendingRouteSearch = false;
+      state.routeSearchBusy = false;
+      state.samInferenceBusy = false;
+      state.pendingSamInference = false;
+      setMapBusy(false, "최적경로 탐색중", "10m 격자 비용맵에서 후보 경로를 계산 중입니다.");
+      if (el.routeBtn) {
+        el.routeBtn.disabled = false;
+        el.routeBtn.classList.remove("is-loading");
+        el.routeBtn.textContent = "경로 계산";
+      }
+      updateSamInferenceStatus(state.samDataset ? "stale" : "idle");
+    }
+
     function setEndpoint(targetKey, latLng) {
+      state.endpointVersion += 1;
+      resetBusyStateForEndpointChange();
       state[`${targetKey}LatLng`] = { lat: latLng.lat, lng: latLng.lng };
       markerForEndpoint(targetKey).setLatLng(latLng);
       setMode("inspect");
@@ -5668,71 +5690,105 @@
         state.pendingRebuild = true;
         return;
       }
+      const rebuildEndpointVersion = state.endpointVersion;
       state.rebuilding = true;
       state.pendingRebuild = false;
-      applyPendingAoiSize();
-      el.dataStatus.textContent = `S/D 중앙점 기준 5km ROI 계산 · ${roiPlanSourceLabel()} wrapper 평가`;
-
-      updateAoiCenterFromRoutePlan();
-      state.endpointDirty = false;
-      updateEndpointMarkers();
-      updateAoiChip();
-      map.setView([state.center.lat, state.center.lng], map.getZoom(), { animate: true });
-      syncNaverBaseView();
-
-      el.dataStatus.textContent = "격자 생성";
-      rebuildExternalRouteCandidates();
-      state.cells = createBaseGrid();
-      if (state.routeLayer) {
-        state.routeLayer.remove();
-        state.routeLayer = null;
-      }
-      state.crossingCandidates = [];
-      renderCrossingCandidates();
-      gridLayer._draw();
-
-      el.dataStatus.textContent = "지형 로딩";
       try {
-        const filled = await loadTerrainRgb();
-        el.dataStatus.textContent = `지형 ${compactNumber(filled)}`;
+        applyPendingAoiSize();
+        el.dataStatus.textContent = `S/D 중앙점 기준 5km ROI 계산 · ${roiPlanSourceLabel()} wrapper 평가`;
+
+        updateAoiCenterFromRoutePlan();
+        if (rebuildEndpointVersion !== state.endpointVersion) {
+          state.endpointDirty = true;
+          return;
+        }
+        state.endpointDirty = false;
+        updateEndpointMarkers();
+        updateAoiChip();
+        map.setView([state.center.lat, state.center.lng], map.getZoom(), { animate: true });
+        syncNaverBaseView();
+
+        el.dataStatus.textContent = "격자 생성";
+        rebuildExternalRouteCandidates();
+        state.cells = createBaseGrid();
+        if (state.routeLayer) {
+          state.routeLayer.remove();
+          state.routeLayer = null;
+        }
+        state.crossingCandidates = [];
+        renderCrossingCandidates();
+        gridLayer._draw();
+
+        el.dataStatus.textContent = "지형 로딩";
+        try {
+          const filled = await loadTerrainRgb();
+          el.dataStatus.textContent = `지형 ${compactNumber(filled)}`;
+        } catch (err) {
+          el.dataStatus.textContent = "지형 대체값";
+          console.warn("Terrain-RGB load failed, using synthetic DEM fallback:", err);
+        }
+        if (rebuildEndpointVersion !== state.endpointVersion) {
+          state.endpointDirty = true;
+          return;
+        }
+        const hydroStats = computeDemHydrology();
+        el.dataStatus.textContent = `DEM 수문 소하천${compactNumber(hydroStats.stream)}/배수${compactNumber(hydroStats.drainage)}`;
+
+        el.dataStatus.textContent = "공간정보 로딩";
+        const samReadyForAoi = state.samDataset && samDatasetMatchesCurrentAoi();
+        if (samReadyForAoi) {
+          el.dataStatus.textContent = "OSM 참고정보 + SAM3.1 판독 적용";
+        } else if (samRecomputeNeeded()) {
+          el.dataStatus.textContent = "OSM 참고정보 로딩 · SAM3.1 5km 영역 재연산 필요";
+        }
+        const osmOk = await loadOsmFeatures();
+        if (!osmOk) applySyntheticFeatures();
+        applySampleImageSegmentation();
+        await requestSamInferenceForCurrentAoi();
+        if (rebuildEndpointVersion !== state.endpointVersion) {
+          state.endpointDirty = true;
+          return;
+        }
+        const samApplied = applySamSegmentationGrid();
+        const hydroFusion = fuseDemHydrologyWithSurface();
+
+        classifyCells();
+        rebuildCrossingCandidates();
+        renderCrossingCandidates();
+        if (state.crossingCandidates.length) {
+          el.dataStatus.textContent = `${el.dataStatus.textContent} · 교차${state.crossingCandidates.length}`;
+        }
+        if (samApplied) {
+          const stats = state.samMaskStats || state.samDataset?.stats || {};
+          el.dataStatus.textContent = `SAM3.1 5km 영역 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/건물${compactNumber(stats.buildingCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
+        } else if (samRecomputeNeeded()) {
+          el.dataStatus.textContent = `${el.dataStatus.textContent} · SAM3.1 5km 영역 재연산 필요`;
+        }
+        await recomputeRoute("최적경로 탐색중 · 경로 wrapper 판정 완료");
+        gridLayer._draw();
+        showCellReason(Math.floor(GRID_N / 2), Math.floor(GRID_N / 2));
       } catch (err) {
-        el.dataStatus.textContent = "지형 대체값";
-        console.warn("Terrain-RGB load failed, using synthetic DEM fallback:", err);
+        console.warn("AOI rebuild failed:", err);
+        el.dataStatus.textContent = `계산 실패 · ${err.message || err}`;
+        clearDisplayedRouteForEndpointChange();
+      } finally {
+        state.rebuilding = false;
+        setMapBusy(false, "최적경로 탐색중", "10m 격자 비용맵에서 후보 경로를 계산 중입니다.");
+        if (el.routeBtn) {
+          el.routeBtn.disabled = false;
+          el.routeBtn.classList.remove("is-loading");
+          el.routeBtn.textContent = "경로 계산";
+        }
+        updateAoiChip();
+        if (state.pendingRebuild) {
+          state.pendingRebuild = false;
+          window.setTimeout(() => {
+            rebuildAoi(`${reason}_pending`).catch(err => {
+              console.warn("Pending AOI rebuild failed:", err);
+            });
+          }, 0);
+        }
       }
-      const hydroStats = computeDemHydrology();
-      el.dataStatus.textContent = `DEM 수문 소하천${compactNumber(hydroStats.stream)}/배수${compactNumber(hydroStats.drainage)}`;
-
-      el.dataStatus.textContent = "공간정보 로딩";
-      const samReadyForAoi = state.samDataset && samDatasetMatchesCurrentAoi();
-      if (samReadyForAoi) {
-        el.dataStatus.textContent = "OSM 참고정보 + SAM3.1 판독 적용";
-      } else if (samRecomputeNeeded()) {
-        el.dataStatus.textContent = "OSM 참고정보 로딩 · SAM3.1 5km 영역 재연산 필요";
-      }
-      const osmOk = await loadOsmFeatures();
-      if (!osmOk) applySyntheticFeatures();
-      applySampleImageSegmentation();
-      await requestSamInferenceForCurrentAoi();
-      const samApplied = applySamSegmentationGrid();
-      const hydroFusion = fuseDemHydrologyWithSurface();
-
-      classifyCells();
-      rebuildCrossingCandidates();
-      renderCrossingCandidates();
-      if (state.crossingCandidates.length) {
-        el.dataStatus.textContent = `${el.dataStatus.textContent} · 교차${state.crossingCandidates.length}`;
-      }
-      if (samApplied) {
-        const stats = state.samMaskStats || state.samDataset?.stats || {};
-        el.dataStatus.textContent = `SAM3.1 5km 영역 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/건물${compactNumber(stats.buildingCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
-      } else if (samRecomputeNeeded()) {
-        el.dataStatus.textContent = `${el.dataStatus.textContent} · SAM3.1 5km 영역 재연산 필요`;
-      }
-      await recomputeRoute("최적경로 탐색중 · 경로 wrapper 판정 완료");
-      gridLayer._draw();
-      showCellReason(Math.floor(GRID_N / 2), Math.floor(GRID_N / 2));
-      state.rebuilding = false;
-      if (state.pendingRebuild) rebuildAoi(`${reason}_pending`);
     }
 
     async function boot() {
