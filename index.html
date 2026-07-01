@@ -1304,6 +1304,7 @@
     const MIN_ROUTE_AOI_SIZE_KM = 1.2;
     const MAX_ROUTE_AOI_SIZE_KM = 5;
     const ROUTE_CORRIDOR_PADDING_M = 600;
+    const ROUTE_ENDPOINT_KEEP_INSIDE_M = 180;
     let GRID_N = 500;
     let HALF_M = (GRID_N * CELL_M) / 2;
     const METERS_PER_LAT = 111320;
@@ -1497,6 +1498,7 @@
       roiPlanCorridorM: ROUTE_CORRIDOR_PADDING_M,
       roiPlanBounds: null,
       roiPlanClipped: false,
+      roiPlanFocus: "route",
       osmLoaded: false,
       stats: null
     };
@@ -2385,6 +2387,49 @@
       return { north, south, east, west };
     }
 
+    function centerOfLatLngBounds(bounds) {
+      return {
+        lat: (bounds.north + bounds.south) / 2,
+        lng: (bounds.east + bounds.west) / 2
+      };
+    }
+
+    function spanMetersForLatLngBounds(bounds) {
+      const center = centerOfLatLngBounds(bounds);
+      return {
+        widthM: Math.max(0, (bounds.east - bounds.west) * metersPerLngAt(center.lat)),
+        heightM: Math.max(0, (bounds.north - bounds.south) * METERS_PER_LAT),
+        center
+      };
+    }
+
+    function expandLatLngBoundsByMeters(bounds, marginM) {
+      const center = centerOfLatLngBounds(bounds);
+      const latPad = marginM / METERS_PER_LAT;
+      const lngPad = marginM / metersPerLngAt(center.lat);
+      return {
+        north: bounds.north + latPad,
+        south: bounds.south - latPad,
+        east: bounds.east + lngPad,
+        west: bounds.west - lngPad
+      };
+    }
+
+    function clampAoiCenterToIncludeBounds(center, includeBounds, sideM) {
+      const halfM = sideM / 2;
+      const next = { ...center };
+      const halfLat = halfM / METERS_PER_LAT;
+      const minLat = includeBounds.north - halfLat;
+      const maxLat = includeBounds.south + halfLat;
+      if (minLat <= maxLat) next.lat = clamp(next.lat, minLat, maxLat);
+
+      const halfLng = halfM / metersPerLngAt(next.lat);
+      const minLng = includeBounds.east - halfLng;
+      const maxLng = includeBounds.west + halfLng;
+      if (minLng <= maxLng) next.lng = clamp(next.lng, minLng, maxLng);
+      return next;
+    }
+
     function routePlanSignature(latLngs = state.roiPlanLatLngs) {
       const points = (latLngs || [])
         .map(normalizeRoutePlanPoint)
@@ -2399,40 +2444,44 @@
     }
 
     function routeCorridorAoiPlan() {
-      const points = [
+      const routePoints = [
         ...(state.roiPlanLatLngs || []),
         state.startLatLng,
         state.endLatLng
       ].filter(Boolean);
-      const bounds = latLngBoundsForPoints(points);
+      const bounds = latLngBoundsForPoints(routePoints);
       if (!bounds || !state.startLatLng || !state.endLatLng) {
         return {
           center: { ...state.center },
           sizeKm: DEFAULT_AOI_SIZE_KM,
           spanM: 0,
           clipped: false,
-          bounds: null
+          bounds: null,
+          focus: "route"
         };
       }
 
-      const center = {
-        lat: (bounds.north + bounds.south) / 2,
-        lng: (bounds.east + bounds.west) / 2
-      };
-      const widthM = Math.max(0, (bounds.east - bounds.west) * metersPerLngAt(center.lat));
-      const heightM = Math.max(0, (bounds.north - bounds.south) * METERS_PER_LAT);
+      const { center: routeCenter, widthM, heightM } = spanMetersForLatLngBounds(bounds);
       const requestedSideM = Math.max(widthM, heightM) + ROUTE_CORRIDOR_PADDING_M * 2;
+      const maxSideM = MAX_ROUTE_AOI_SIZE_KM * 1000;
       const sideM = clamp(
         requestedSideM,
         MIN_ROUTE_AOI_SIZE_KM * 1000,
-        MAX_ROUTE_AOI_SIZE_KM * 1000
+        maxSideM
       );
+      const clipped = requestedSideM > sideM + CELL_M;
+      const endpointBounds = latLngBoundsForPoints([state.startLatLng, state.endLatLng]);
+      const endpointGuard = expandLatLngBoundsByMeters(endpointBounds, ROUTE_ENDPOINT_KEEP_INSIDE_M);
+      const center = clipped
+        ? clampAoiCenterToIncludeBounds(centerOfLatLngBounds(endpointBounds), endpointGuard, sideM)
+        : routeCenter;
       return {
         center,
         sizeKm: sideM / 1000,
         spanM: Math.max(widthM, heightM),
-        clipped: requestedSideM > sideM + CELL_M,
-        bounds
+        clipped,
+        bounds,
+        focus: clipped ? "endpoints" : "route"
       };
     }
 
@@ -2493,6 +2542,7 @@
       state.roiPlanCorridorM = ROUTE_CORRIDOR_PADDING_M;
       state.roiPlanBounds = plan.bounds;
       state.roiPlanClipped = plan.clipped;
+      state.roiPlanFocus = plan.focus;
       state.start = latLngToIJ(state.startLatLng);
       state.end = latLngToIJ(state.endLatLng);
     }
@@ -2983,6 +3033,8 @@
         routeCorridor: {
           mode: "route_first_wrapper",
           paddingM: state.roiPlanCorridorM,
+          endpointKeepInsideM: ROUTE_ENDPOINT_KEEP_INSIDE_M,
+          focus: state.roiPlanFocus,
           clippedToMaxAoi: state.roiPlanClipped,
           bounds: state.roiPlanBounds
         }
@@ -5611,7 +5663,11 @@
           `경로 계산 대기 · 도로 경로 먼저 산출 후 경로 주변 SAM 판독 · 지정 거리 ${routeKm.toFixed(1)}km`;
         return;
       }
-      const clipText = state.roiPlanClipped ? " · 최대 5km로 제한" : "";
+      const clipText = state.roiPlanClipped
+        ? state.roiPlanFocus === "endpoints"
+          ? " · 경로가 넓어 S/D 포함 우선"
+          : " · 최대 5km로 제한"
+        : "";
       document.getElementById("aoiChip").textContent =
         `경로 주변 판독영역: ${aoiSizeLabel()} · ${aoiCellCountLabel()} · ${sourceLabel} ${routeKm.toFixed(1)}km · 주변 ${Math.round(state.roiPlanCorridorM)}m${clipText}`;
     }
