@@ -5804,7 +5804,7 @@
         const planRoute = plan?.routeCandidates?.[plan.activeRouteIndex || 0] || plan?.routeCandidates?.[0] || null;
         const summary = planRoute
           ? summarizeRouteTimeForVehicle(planRoute, vehicleKey)
-          : summarizeRouteTimeForVehicle(route || [], vehicleKey);
+          : { minutes: Infinity, avgSpeed: 0 };
         const timeEl = button.querySelector(".mode-time");
         if (timeEl) timeEl.textContent = Number.isFinite(summary.minutes) ? formatDuration(summary.minutes) : "-";
         button.classList.toggle("active", vehicleKey === state.vehicleKey);
