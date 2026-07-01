@@ -3579,8 +3579,29 @@
 
       const manualBlock = state.manualBlocked.get(cellKey(cell.i, cell.j));
       if (manualBlock) {
-        hardBlock = true;
         reasons.push(manualBlock.reason);
+        return {
+          zone: "red",
+          cost: Infinity,
+          costScore: Infinity,
+          costBreakdown: reasons.map(reason => ({ label: formatReason(reason), amount: null })),
+          reasons,
+          confidence: clamp(confidence, 0.2, 0.95)
+        };
+      }
+      if (cell.roadNetworkConfirmed) {
+        const roadBase = Math.max(1.2, roadClassCost(input.roadClass || "network_road"));
+        reasons.push("road_network_confirmed");
+        return {
+          zone: "green",
+          cost: roadBase,
+          costScore: roadBase,
+          costBreakdown: [
+            { label: "도로 네트워크 확인", amount: roadBase }
+          ],
+          reasons,
+          confidence: clamp(Math.max(confidence, 0.86), 0.2, 0.96)
+        };
       }
       if (input.building && vehicle.kind !== "person") {
         hardBlock = true;
@@ -4044,6 +4065,7 @@
       if (reason === "water_without_confirmed_crossing") return "확인된 crossing 없는 수계";
       if (reason === "route_hits_blocked_cell") return "도로 후보가 차단 격자를 통과";
       if (reason === "route_crosses_water_without_crossing") return "도로 후보가 crossing 없는 수계를 통과";
+      if (reason === "road_network_confirmed") return "도로 네트워크 확인";
       if (reason === "narrow_path_ok") return "좁은 길이지만 도보 통과 가능";
       if (reason === "narrow_road") return "도로 폭이 좁음";
       if (reason.includes("_under_vehicle_clearance_")) return "차량 차폭보다 좁은 선형로";
