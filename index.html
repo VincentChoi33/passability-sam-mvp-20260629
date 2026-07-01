@@ -1245,11 +1245,11 @@
         <div class="google-route-box">
           <div class="google-route-head">
             <span>Naver 도로 후보</span>
-            <span id="naverRouteStatus" class="google-route-status">프록시 대기</span>
+            <span id="naverRouteStatus" class="google-route-status">서버 대기</span>
           </div>
           <div class="google-route-actions">
             <button id="naverRouteBtn" type="button">Naver 후보 평가</button>
-            <button id="naverProxyBtn" type="button">프록시 저장</button>
+            <button id="naverProxyBtn" type="button">서버 교체</button>
           </div>
         </div>
         <div class="vehicle-strip">
@@ -1550,6 +1550,7 @@
     const NAVER_PROXY_STORAGE = "neotactic_naver_directions_proxy";
     const SAM_API_STORAGE = "neotactic_sam_roi_api";
     const DEFAULT_SAM_INFERENCE_URL = "https://arg-founder-production-attended.trycloudflare.com/sam/roi";
+    const DEFAULT_NAVER_DIRECTIONS_PROXY = "https://arg-founder-production-attended.trycloudflare.com/naver/directions";
     let googleLoadPromise = null;
 
     function installGoogleKeyFromUrl() {
@@ -1577,7 +1578,8 @@
         const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
         window.history.replaceState({}, "", nextUrl);
       }
-      state.naverProxyUrl = localStorage.getItem(NAVER_PROXY_STORAGE) || "";
+      const storedProxy = localStorage.getItem(NAVER_PROXY_STORAGE);
+      state.naverProxyUrl = storedProxy && storedProxy.trim() ? storedProxy.trim() : DEFAULT_NAVER_DIRECTIONS_PROXY;
       updateNaverRouteStatus();
     }
 
@@ -1623,18 +1625,18 @@
     function updateNaverRouteStatus(message) {
       if (message) state.naverRouteStatus = message;
       const labels = {
-        idle: state.naverProxyUrl ? "프록시 연결 대기" : "프록시 대기",
+        idle: state.naverProxyUrl ? "서버 연결 대기" : "서버 대기",
         routing: "후보 계산 중",
         scored: "후보 평가 완료",
         empty: "도로후보 없음",
-        error: "프록시 실패",
+        error: "서버 실패",
         stale: "후보 갱신 필요"
       };
       if (el.naverRouteStatus) {
         el.naverRouteStatus.textContent = labels[state.naverRouteStatus] || state.naverRouteStatus;
       }
       if (el.naverProxyBtn) {
-        el.naverProxyBtn.textContent = state.naverProxyUrl ? "프록시 교체" : "프록시 저장";
+        el.naverProxyBtn.textContent = state.naverProxyUrl ? "서버 교체" : "서버 저장";
       }
     }
 
@@ -1752,7 +1754,7 @@
     }
 
     function promptForNaverProxy() {
-      const proxyUrl = window.prompt("Naver Directions proxy URL을 입력하세요. secret은 프론트에 저장하지 않습니다.", state.naverProxyUrl || "");
+      const proxyUrl = window.prompt("Naver Directions 서버 URL을 입력하세요. secret은 프론트에 저장하지 않습니다.", state.naverProxyUrl || DEFAULT_NAVER_DIRECTIONS_PROXY);
       if (!proxyUrl || !proxyUrl.trim()) return "";
       state.naverProxyUrl = proxyUrl.trim();
       localStorage.setItem(NAVER_PROXY_STORAGE, state.naverProxyUrl);
@@ -1771,7 +1773,9 @@
 
     function ensureNaverProxyUrl() {
       if (state.naverProxyUrl) return state.naverProxyUrl;
-      return promptForNaverProxy();
+      state.naverProxyUrl = DEFAULT_NAVER_DIRECTIONS_PROXY;
+      updateNaverRouteStatus("idle");
+      return state.naverProxyUrl;
     }
 
     function ensureSamApiUrl() {
