@@ -1189,7 +1189,7 @@
           </div>
           <div class="explain-block">
             <h3>이동 주체별 차이</h3>
-            <p>같은 격자라도 도보 인원, ATV, 소형 전술차량, 대형 트럭, 궤도형 차량마다 기준이 다릅니다. 예를 들어 도보 인원은 등산로와 급경사를 어느 정도 허용하지만, 차량은 최소 차폭보다 좁은 길을 차단하고 대형 트럭은 산지도로/임도도 폭 기준에 걸릴 수 있습니다. 그래서 이동 주체를 바꾸면 같은 지점의 색상과 경로가 달라질 수 있습니다.</p>
+            <p>같은 격자라도 도보 인원, ATV, 소형 전술차량, 대형 트럭, 탱크류 차량마다 기준이 다릅니다. 예를 들어 도보 인원은 등산로와 급경사를 어느 정도 허용하지만, 차량은 최소 차폭보다 좁은 길을 차단하고 대형 트럭과 탱크류는 산지도로/임도도 폭 기준에 걸릴 수 있습니다. 그래서 이동 주체를 바꾸면 같은 지점의 색상과 경로가 달라질 수 있습니다.</p>
           </div>
           <div class="explain-block">
             <h3>현재 기준의 성격</h3>
@@ -1197,7 +1197,7 @@
           </div>
           <div class="explain-block">
             <h3>경로가 나오는 방식</h3>
-            <p>경로 계산은 develop 서버의 도로 후보를 먼저 받아오고, 그 후보가 지나는 10m 격자는 도로 네트워크 확인 근거로 보존합니다. 이후 선택한 이동 주체별로 SAM3.1 수계/건물/도로/산지도로 판독, DEM 경사, 사용자 차단구역을 덮어 Naver 후보와 A* 우회 후보를 함께 점수화합니다. 그래서 도보, ATV, 소형 전술차량, 트럭, 궤도형 차량을 바꾸면 같은 S/D라도 1안 경로가 달라질 수 있습니다.</p>
+            <p>경로 계산은 develop 서버의 도로 후보를 먼저 받아오고, 그 후보가 지나는 10m 격자는 도로 네트워크 확인 근거로 보존합니다. 이후 선택한 이동 주체별로 SAM3.1 수계/건물/도로/산지도로 판독, DEM 경사, 사용자 차단구역을 덮어 Naver 후보와 A* 우회 후보를 함께 점수화합니다. 그래서 도보, ATV, 소형 전술차량, 트럭, 탱크류를 바꾸면 같은 S/D라도 1안 경로가 달라질 수 있습니다.</p>
           </div>
           <div class="explain-block">
             <h3>실시간 차단 반영</h3>
@@ -1266,7 +1266,7 @@
             <option value="atv">ATV / 오토바이</option>
             <option value="light">소형 전술차량</option>
             <option value="heavy">대형 트럭</option>
-            <option value="tracked">궤도형 지원차량</option>
+            <option value="tracked">탱크류</option>
           </select>
           <div id="vehicleCompare" class="vehicle-compare" aria-label="이동 주체별 예상시간">
             <button class="vehicle-mode active" type="button" data-vehicle-key="person">
@@ -1286,7 +1286,7 @@
               <span class="mode-time">-</span>
             </button>
             <button class="vehicle-mode" type="button" data-vehicle-key="tracked">
-              <span class="mode-name">궤도</span>
+              <span class="mode-name">탱크류</span>
               <span class="mode-time">-</span>
             </button>
           </div>
@@ -1405,7 +1405,7 @@
         minKph: 2,
       },
       tracked: {
-        label: "궤도형 지원차량",
+        label: "탱크류",
         kind: "tracked",
         widthM: 3.1,
         weightT: 22,
@@ -3628,7 +3628,7 @@
           confidence: clamp(confidence, 0.2, 0.95)
         };
       }
-      if (isProtectedRoadNetworkCell(cell, input)) {
+      if (isProtectedRoadNetworkCell(cell, input, vehicleKey)) {
         const roadBase = protectedRoadCost(input.roadClass || "network_road");
         reasons.push("road_network_confirmed");
         return {
@@ -3891,11 +3891,27 @@
       return clamp(risk, 0, 1);
     }
 
-    function isProtectedRoadNetworkCell(cell, input = null) {
+    function protectedRoadWidthForVehicle(vehicle, vehicleKey) {
+      if (!vehicle || vehicle.kind === "person") return 0;
+      if (vehicleKey === "atv") return 1.1;
+      if (vehicle.kind === "tracked" || vehicle.kind === "heavy_wheeled") return vehicle.roadMinWidth;
+      return Math.max(vehicle.roadMinWidth, vehicle.widthM + 0.35);
+    }
+
+    function isProtectedRoadNetworkCell(cell, input = null, vehicleKey = state.vehicleKey) {
       if (!cell) return false;
-      if (cell.roadNetworkConfirmed) return true;
       const road = input ? input.road : cell.road;
-      return !!road;
+      if (!road) return false;
+      const vehicle = vehicles[vehicleKey] || vehicles[state.vehicleKey];
+      if (!vehicle || vehicle.kind === "person") return true;
+      const cls = input?.roadClass || cell.roadClass || "network_road";
+      const width = Number(input?.roadWidth ?? cell.roadWidth ?? 0);
+      const hasWidth = Number.isFinite(width) && width > 0;
+      const wideEnough = !hasWidth || width >= protectedRoadWidthForVehicle(vehicle, vehicleKey);
+      if (cell.roadNetworkConfirmed) return wideEnough;
+      if (vehicleKey === "atv") return wideEnough && cls !== "footway";
+      if (["path", "footway", "cycleway"].includes(cls)) return false;
+      return wideEnough;
     }
 
     function protectedRoadCost(cls) {
@@ -4262,7 +4278,7 @@
 
     function analysisColor(cell, alpha, manualBlock = false) {
       if (manualBlock) return zoneColor(cell.zone, alpha, true);
-      if (isProtectedRoadNetworkCell(cell)) return roadNetworkColor(alpha);
+      if (isProtectedRoadNetworkCell(cell, null, state.vehicleKey)) return roadNetworkColor(alpha);
       if (state.analysisLayer === "hydrology") return hydrologyColor(cell, alpha);
       if (state.analysisLayer === "segmentation") return segmentationColor(cell, alpha);
       if (state.analysisLayer === "slope") return slopeColor(cell.slope, alpha);
@@ -5253,7 +5269,7 @@
       const cell = state.cells[idx(point.i, point.j)];
       const input = effectiveCellInputs(cell);
       if (state.manualBlocked.has(cellKey(point.i, point.j))) return "black";
-      if (isProtectedRoadNetworkCell(cell, input)) return "green";
+      if (isProtectedRoadNetworkCell(cell, input, state.vehicleKey)) return "green";
       if (!Number.isFinite(cell.cost)) return "red";
       if (input.water && !input.waterCrossing && !input.road) return "red";
       if (cell.zone === "red") return "red";
