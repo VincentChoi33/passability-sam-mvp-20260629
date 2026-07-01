@@ -981,7 +981,7 @@
           <select id="aoiSizeSelect" disabled>
             <option value="5" selected>5km x 5km · 고정 · 25만 칸</option>
           </select>
-          <p class="note">출발지/도착지와 도로 후보에 따라 중심점만 다시 잡고, 분석 크기는 항상 5km x 5km로 유지합니다.</p>
+          <p class="note">출발지 S와 도착지 D의 중앙점을 기준으로 5km x 5km를 잡고, 분석 크기는 항상 고정합니다.</p>
         </div>
         <div class="control">
           <label for="baseLayerSelect">배경지도</label>
@@ -1137,7 +1137,7 @@
           </div>
           <div class="explain-block">
             <h3>지도와 격자의 관계</h3>
-            <p>Leaflet은 배경지도와 화면 조작을 담당하고, 통행성 계산은 별도의 10m 격자에서 합니다. 출발지와 도착지를 잡으면 경로 후보를 중심으로 5km x 5km 고정 관심영역을 만들고, 그 안을 10m 단위 칸으로 나눕니다. 이후 각 격자 칸을 Leaflet 지도 좌표에 맞춰 반투명 색상으로 덮어 보여줍니다.</p>
+            <p>Leaflet은 배경지도와 화면 조작을 담당하고, 통행성 계산은 별도의 10m 격자에서 합니다. 출발지 S와 도착지 D를 잡으면 두 지점의 중앙점을 중심으로 5km x 5km 고정 관심영역을 만들고, 그 안을 10m 단위 칸으로 나눕니다. 이후 각 격자 칸을 Leaflet 지도 좌표에 맞춰 반투명 색상으로 덮어 보여줍니다.</p>
           </div>
           <div class="explain-block">
             <h3>영상/DEM 판독 MVP</h3>
@@ -1875,6 +1875,23 @@
       };
     }
 
+    function midpointLatLng(a, b) {
+      const lat1 = a.lat * Math.PI / 180;
+      const lat2 = b.lat * Math.PI / 180;
+      const dLng = (b.lng - a.lng) * Math.PI / 180;
+      const bx = Math.cos(lat2) * Math.cos(dLng);
+      const by = Math.cos(lat2) * Math.sin(dLng);
+      const lat = Math.atan2(
+        Math.sin(lat1) + Math.sin(lat2),
+        Math.sqrt((Math.cos(lat1) + bx) ** 2 + by ** 2)
+      );
+      const lng = (a.lng * Math.PI / 180) + Math.atan2(by, Math.cos(lat1) + bx);
+      return {
+        lat: lat * 180 / Math.PI,
+        lng: ((((lng * 180 / Math.PI) + 540) % 360) - 180)
+      };
+    }
+
     function decodeEncodedPolyline(encoded) {
       const points = [];
       let index = 0;
@@ -2387,36 +2404,8 @@
     function updateAoiCenterFromRoutePlan() {
       if (!state.startLatLng || !state.endLatLng) return;
       if (!state.roiPlanLatLngs.length) setRoiPlan(directRoutePlanLatLngs(), "direct");
-      const points = [
-        ...state.roiPlanLatLngs,
-        { lat: state.startLatLng.lat, lng: state.startLatLng.lng },
-        { lat: state.endLatLng.lat, lng: state.endLatLng.lng }
-      ];
-      const bounds = points.reduce((acc, point) => ({
-        minLat: Math.min(acc.minLat, point.lat),
-        maxLat: Math.max(acc.maxLat, point.lat),
-        minLng: Math.min(acc.minLng, point.lng),
-        maxLng: Math.max(acc.maxLng, point.lng)
-      }), {
-        minLat: Infinity,
-        maxLat: -Infinity,
-        minLng: Infinity,
-        maxLng: -Infinity
-      });
-      if (!Number.isFinite(bounds.minLat) || !Number.isFinite(bounds.minLng)) return;
-      state.center = {
-        lat: (bounds.minLat + bounds.maxLat) / 2,
-        lng: (bounds.minLng + bounds.maxLng) / 2
-      };
-      const verticalM = geoDistanceMeters(
-        { lat: bounds.minLat, lng: bounds.minLng },
-        { lat: bounds.maxLat, lng: bounds.minLng }
-      );
-      const horizontalM = geoDistanceMeters(
-        { lat: bounds.minLat, lng: bounds.minLng },
-        { lat: bounds.minLat, lng: bounds.maxLng }
-      );
-      state.roiPlanSpanM = Math.max(verticalM, horizontalM);
+      state.center = midpointLatLng(state.startLatLng, state.endLatLng);
+      state.roiPlanSpanM = geoDistanceMeters(state.startLatLng, state.endLatLng);
       state.start = latLngToIJ(state.startLatLng);
       state.end = latLngToIJ(state.endLatLng);
     }
@@ -5450,7 +5439,7 @@
         return;
       }
       document.getElementById("aoiChip").textContent =
-        `관심영역: ${sourceLabel} 주변 ${aoiSizeLabel()} 고정 · ${aoiCellCountLabel()} · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${routeKm.toFixed(1)}km`;
+        `관심영역: S/D 중앙점 기준 ${aoiSizeLabel()} 고정 · ${aoiCellCountLabel()} · 중심 ${state.center.lat.toFixed(4)}, ${state.center.lng.toFixed(4)} · 후보 ${sourceLabel} ${routeKm.toFixed(1)}km`;
     }
 
     async function rebuildAoi(reason = "rebuild") {
@@ -5461,7 +5450,7 @@
       state.rebuilding = true;
       state.pendingRebuild = false;
       applyPendingAoiSize();
-      el.dataStatus.textContent = `${roiPlanSourceLabel()} 기준 ROI 계산`;
+      el.dataStatus.textContent = `S/D 중앙점 기준 ROI 계산 · ${roiPlanSourceLabel()} 후보 평가`;
 
       updateAoiCenterFromRoutePlan();
       state.endpointDirty = false;
