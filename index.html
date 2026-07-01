@@ -4577,17 +4577,13 @@
     function rankedGoogleRouteCandidates() {
       if (!state.googleRouteCandidates.length) return [];
       if (state.googleRouteEndpointKey !== currentEndpointKey()) return [];
-      return state.googleRouteCandidates
-        .slice()
-        .sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+      return state.googleRouteCandidates.slice();
     }
 
     function rankedNaverRouteCandidates() {
       if (!state.naverRouteCandidates.length) return [];
       if (state.naverRouteEndpointKey !== currentEndpointKey()) return [];
-      return state.naverRouteCandidates
-        .slice()
-        .sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+      return state.naverRouteCandidates.slice();
     }
 
     function rebuildExternalRouteCandidates() {
@@ -4613,7 +4609,7 @@
       return [
         ...rankedNaverRouteCandidates(),
         ...rankedGoogleRouteCandidates()
-      ].sort((a, b) => routeRiskScore(a) - routeRiskScore(b));
+      ];
     }
 
     function buildFallbackRouteCandidates(routeStart, routeEnd, googleActive = false) {
@@ -4727,12 +4723,8 @@
       if (state.activeRouteIndex >= state.routeCandidates.length) {
         state.activeRouteIndex = 0;
       }
-      if (externalActive) {
-        const fallbackIndex = state.routeCandidates.findIndex(route => routeMeta(route).source === "astar");
-        if (fallbackIndex >= 0 && state.routeCandidates.slice(0, fallbackIndex).every(route => summarizeRoute(route).blocked > 0)) {
-          state.activeRouteIndex = fallbackIndex;
-          updateGoogleRouteStatus("fallback");
-        }
+      if (state.routeCandidates[state.activeRouteIndex] && routeMeta(state.routeCandidates[state.activeRouteIndex]).source === "astar" && externalActive) {
+        state.activeRouteIndex = 0;
       }
       if (!state.routeCandidates.length) {
         state.route = [];
@@ -5342,6 +5334,8 @@
         </div>
         <ul class="reason-list">
           <li>경로 출처: ${escapeHtml(routeSourceLabel(meta))}</li>
+          ${meta.source === "naver" ? "<li>적용 방식: Naver 경로를 기본으로 두고, SAM/DEM/수계/차단구역/차량 조건을 덮어 평가</li>" : ""}
+          ${meta.source === "astar" ? "<li>적용 방식: Naver 후보가 위험할 때 비교하는 우리 A* 우회 참고안</li>" : ""}
           ${meta.description ? `<li>도로 후보: ${escapeHtml(meta.description)}</li>` : ""}
           <li>표시점/검사격자: ${summary.waypointLength}/${summary.traceLength}</li>
           <li>거리: ${(summary.dist / 1000).toFixed(2)} km</li>
