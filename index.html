@@ -1005,6 +1005,10 @@
             <input id="visionToggle" type="checkbox" checked />
             영상분할 결과를 통행성 판정에 반영
           </label>
+          <label class="check-row" for="crossingToggle">
+            <input id="crossingToggle" type="checkbox" checked />
+            교량/암거 후보 표시
+          </label>
           <div class="google-route-box">
             <div class="google-route-head">
               <span>SAM3.1 경로 판독</span>
@@ -1148,7 +1152,7 @@
           </div>
           <div class="explain-block">
             <h3>수계와 교차점</h3>
-            <p>수계와 소하천은 원칙적으로 차단으로 보고, 도로/산지도로/등산로가 수계를 가로지르는 격자만 crossing 후보로 따로 표시합니다. OSM 도로 태그나 SAM3.1 교량/암거 mask가 있으면 초록 점으로 교량/암거 확인 지점, 태그 없이 선형로와 물 mask만 겹치면 주황 점으로 확인 필요 후보, ford 성격이면 보라 점으로 표시합니다. 판독 레이어에서 수계/교차점을 고르면 물과 crossing 후보만 집중해서 볼 수 있습니다.</p>
+            <p>수계와 소하천은 원칙적으로 차단으로 보고, 도로/산지도로/등산로가 수계를 가로지르는 격자만 crossing 후보로 따로 표시합니다. OSM bridge 태그처럼 교량이 확인되면 초록 점, 암거/수계 위 도로/SAM3.1 후보처럼 제원 확인이 필요한 경우는 주황 점, ford 성격이면 보라 점으로 표시합니다. 교량/암거 후보 표시는 배경설정에서 켜고 끌 수 있습니다.</p>
           </div>
           <div class="explain-block">
             <h3>SAM3.1 판독 결과</h3>
@@ -1185,7 +1189,7 @@
           </div>
           <div class="explain-block">
             <h3>이동 주체별 차이</h3>
-            <p>같은 격자라도 도보 인원, ATV, 소형 4x4, 대형 트럭, 궤도형 차량마다 기준이 다릅니다. 예를 들어 도보 인원은 등산로와 급경사를 어느 정도 허용하지만, 차량은 최소 차폭보다 좁은 길을 차단하고 대형 트럭은 산지도로/임도도 폭 기준에 걸릴 수 있습니다. 그래서 이동 주체를 바꾸면 같은 지점의 색상과 경로가 달라질 수 있습니다.</p>
+            <p>같은 격자라도 도보 인원, ATV, 소형 전술차량, 대형 트럭, 궤도형 차량마다 기준이 다릅니다. 예를 들어 도보 인원은 등산로와 급경사를 어느 정도 허용하지만, 차량은 최소 차폭보다 좁은 길을 차단하고 대형 트럭은 산지도로/임도도 폭 기준에 걸릴 수 있습니다. 그래서 이동 주체를 바꾸면 같은 지점의 색상과 경로가 달라질 수 있습니다.</p>
           </div>
           <div class="explain-block">
             <h3>현재 기준의 성격</h3>
@@ -1193,7 +1197,7 @@
           </div>
           <div class="explain-block">
             <h3>경로가 나오는 방식</h3>
-            <p>기본 경로는 네이버 도로 경로를 먼저 사용합니다. 그 경로가 지나는 10m 격자에 SAM3.1 수계/건물/도로/산지도로 판독과 DEM 경사, 사용자 차단구역을 덮어 위험 wrapper를 씌웁니다. 네이버 경로 위에 노랑/주황/빨강 구간이 생기면 왜 위험한지 설명하고, 비교안으로 A* 우회 경로를 함께 계산합니다. A*는 빨간 칸을 피하고, 초록/노랑 칸의 비용이 낮은 방향과 교량/암거 crossing을 우선 선택합니다.</p>
+            <p>경로 계산은 develop 서버의 도로 후보를 먼저 받아오고, 그 후보가 지나는 10m 격자는 도로 네트워크 확인 근거로 보존합니다. 이후 선택한 이동 주체별로 SAM3.1 수계/건물/도로/산지도로 판독, DEM 경사, 사용자 차단구역을 덮어 Naver 후보와 A* 우회 후보를 함께 점수화합니다. 그래서 도보, ATV, 소형 전술차량, 트럭, 궤도형 차량을 바꾸면 같은 S/D라도 1안 경로가 달라질 수 있습니다.</p>
           </div>
           <div class="explain-block">
             <h3>실시간 차단 반영</h3>
@@ -1260,7 +1264,7 @@
           <select id="vehicleSelect" class="visually-hidden" aria-label="이동 주체">
             <option value="person">도보 인원</option>
             <option value="atv">ATV / 오토바이</option>
-            <option value="light">소형 4x4 차량</option>
+            <option value="light">소형 전술차량</option>
             <option value="heavy">대형 트럭</option>
             <option value="tracked">궤도형 지원차량</option>
           </select>
@@ -1274,7 +1278,7 @@
               <span class="mode-time">-</span>
             </button>
             <button class="vehicle-mode" type="button" data-vehicle-key="light">
-              <span class="mode-name">4x4</span>
+              <span class="mode-name">소형차량</span>
               <span class="mode-time">-</span>
             </button>
             <button class="vehicle-mode" type="button" data-vehicle-key="heavy">
@@ -1361,7 +1365,7 @@
         minKph: 4,
       },
       light: {
-        label: "소형 4x4 차량",
+        label: "소형 전술차량",
         kind: "wheeled",
         widthM: 2.1,
         weightT: 3.5,
@@ -1443,6 +1447,7 @@
       baseLayer: "imagery",
       analysisLayer: "passability",
       useVisionSegmentation: true,
+      showCrossingCandidates: true,
       samDataset: null,
       samApplied: false,
       samMaskStats: null,
@@ -1521,6 +1526,7 @@
       baseLayerSelect: document.getElementById("baseLayerSelect"),
       analysisLayerSelect: document.getElementById("analysisLayerSelect"),
       visionToggle: document.getElementById("visionToggle"),
+      crossingToggle: document.getElementById("crossingToggle"),
       startSearchInput: document.getElementById("startSearchInput"),
       endSearchInput: document.getElementById("endSearchInput"),
       startModeBtn: document.getElementById("startModeBtn"),
@@ -1608,7 +1614,10 @@
         window.history.replaceState({}, "", nextUrl);
       }
       const storedApi = localStorage.getItem(SAM_API_STORAGE);
-      state.samApiUrl = storedApi && storedApi.trim() ? storedApi.trim() : DEFAULT_SAM_INFERENCE_URL;
+      state.samApiUrl = suppliedApi && suppliedApi.trim()
+        ? suppliedApi.trim()
+        : DEFAULT_SAM_INFERENCE_URL;
+      if (storedApi && !suppliedApi) localStorage.setItem(SAM_API_STORAGE, DEFAULT_SAM_INFERENCE_URL);
       updateSamInferenceStatus();
     }
 
@@ -1654,7 +1663,7 @@
     function updateSamInferenceStatus(message) {
       if (message) state.samInferenceStatus = message;
       const labels = {
-        idle: state.samApiUrl ? "서버 연결 대기" : "서버 대기",
+        idle: state.samApiUrl ? "develop 대기" : "서버 대기",
         queued: "요청 전송",
         running: "SAM3.1 추론 중",
         polling: "결과 대기",
@@ -2702,6 +2711,7 @@
             road: false,
             roadClass: null,
             roadWidth: 0,
+            roadNetworkConfirmed: false,
             water: false,
             hydroClass: "none",
             hydroAccum: 0,
@@ -3166,8 +3176,9 @@
         return true;
       }
       if (!state.samApiUrl) {
-        updateSamInferenceStatus(state.samDataset ? "stale" : "missing");
-        return false;
+        state.samApiUrl = DEFAULT_SAM_INFERENCE_URL;
+        localStorage.setItem(SAM_API_STORAGE, state.samApiUrl);
+        updateSamInferenceStatus("idle");
       }
       if (state.samInferenceBusy) {
         state.pendingSamInference = true;
@@ -3180,10 +3191,13 @@
       state.pendingSamInference = false;
       state.samInferenceEndpointKey = requestRoiKey;
       updateSamInferenceStatus("queued");
-      setMapBusy(true, "최적경로 파악중", "산악지·수계·건물·도로 판독을 시작합니다.");
+      setMapBusy(true, "최적경로 파악중", "develop 서버에서 위성 ROI export + SAM3.1 산악지·수계·건물·도로 판독을 시작합니다.");
       await nextFrame();
       try {
         updateSamInferenceStatus("running");
+        if (el.routeBusyDetail) {
+          el.routeBusyDetail.textContent = "develop 서버 SAM3.1 추론 작업 생성 중";
+        }
         const payload = currentSamRequestPayload();
         const { data, responseUrl } = await fetchSamJson(state.samApiUrl, {
           method: "POST",
@@ -3408,16 +3422,17 @@
       const bridge = tags.bridge && tags.bridge !== "no";
       const culvert = tags.tunnel === "culvert" || tags.culvert || tags.waterway === "culvert";
       const ford = tags.ford && tags.ford !== "no";
-      if (bridge || culvert) return "confirmed";
+      if (bridge) return "confirmed";
       if (ford) return "ford";
+      if (culvert) return "candidate";
       return "candidate";
     }
 
     function setCrossingStatus(cell, status, source) {
       if (!status || status === "none") return;
       cell.waterCrossing = true;
-      if (cell.crossingStatus === "confirmed") return;
-      if (status === "confirmed" || cell.crossingStatus === "none") {
+      const rank = value => value === "confirmed" ? 3 : value === "ford" ? 2 : value === "candidate" ? 1 : 0;
+      if (rank(status) >= rank(cell.crossingStatus)) {
         cell.crossingStatus = status;
         cell.crossingSource = source;
       }
@@ -3817,6 +3832,7 @@
 
     function roadClassCost(cls) {
       if (["motorway", "trunk", "primary", "secondary"].includes(cls)) return 1.1;
+      if (["network_road"].includes(cls)) return 1.35;
       if (["tertiary", "unclassified", "residential"].includes(cls)) return 1.6;
       if (["service"].includes(cls)) return 2.0;
       if (["image_road"].includes(cls)) return 2.2;
@@ -3878,6 +3894,7 @@
     function roadSpeedFactor(cls) {
       if (["motorway", "trunk", "primary"].includes(cls)) return 1.0;
       if (["secondary", "tertiary"].includes(cls)) return 0.82;
+      if (["network_road"].includes(cls)) return 0.72;
       if (["unclassified", "residential"].includes(cls)) return 0.64;
       if (["service"].includes(cls)) return 0.5;
       if (["mountain_road"].includes(cls)) return 0.32;
@@ -3977,6 +3994,8 @@
         osm_water: "OSM 수계",
         osm_building: "OSM 건물",
         osm_road: "OSM 도로",
+        naver_route_network: "Naver 도로 네트워크",
+        google_route_network: "Google 도로 네트워크",
         sam3_1_segmentation: "SAM3.1 영상분할",
         dem_hydro_fusion: "DEM 수문분석+영상분할"
       }[value] || value;
@@ -4007,6 +4026,7 @@
         footway: "보도",
         cycleway: "자전거도로",
         image_road: "영상판독 도로",
+        network_road: "도로 네트워크 확인",
         sam3_bridge: "SAM3.1 교량 후보",
         unknown: "미상 도로"
       }[value] || value;
@@ -4172,7 +4192,7 @@
     }
 
     function hydrologyColor(cell, alpha) {
-      if (cell.waterCrossing) {
+      if (state.showCrossingCandidates && cell.waterCrossing) {
         if (cell.crossingStatus === "confirmed") return `rgba(36, 192, 107, ${Math.min(alpha + 0.14, 0.92)})`;
         if (cell.crossingStatus === "ford") return `rgba(170, 110, 255, ${Math.min(alpha + 0.14, 0.92)})`;
         return `rgba(240, 138, 62, ${Math.min(alpha + 0.14, 0.92)})`;
@@ -4488,12 +4508,13 @@
         el.vehicleSelect.dispatchEvent(new Event("change", { bubbles: true }));
       });
     });
-    el.vehicleSelect.addEventListener("change", event => {
+    el.vehicleSelect.addEventListener("change", async event => {
       state.vehicleKey = event.target.value;
+      state.activeRouteIndex = 0;
       syncSpeedInputs();
       classifyCells();
-      if (state.route.length) {
-        renderActiveRoute();
+      if (state.cells.length && !state.endpointDirty) {
+        await recomputeRoute(`최적경로 탐색중 · ${vehicles[state.vehicleKey].label} 기준`);
       } else {
         updateVehicleCompare([]);
       }
@@ -4538,6 +4559,13 @@
       recomputeRoute();
       gridLayer._draw();
     });
+    if (el.crossingToggle) {
+      el.crossingToggle.addEventListener("change", event => {
+        state.showCrossingCandidates = event.target.checked;
+        renderCrossingCandidates();
+        gridLayer._draw();
+      });
+    }
     el.routeBtn.addEventListener("click", async () => {
       await refreshNaverRouteCandidates();
     });
@@ -4687,6 +4715,7 @@
 
     function renderCrossingCandidates() {
       crossingLayer.clearLayers();
+      if (!state.showCrossingCandidates) return;
       for (const candidate of state.crossingCandidates) {
         const color = crossingMarkerColor(candidate.status);
         const marker = L.circleMarker(ijToLatLng(candidate.i, candidate.j), {
@@ -4843,6 +4872,22 @@
         + summary.minutes;
     }
 
+    function routeSelectionScore(route) {
+      const summary = summarizeRoute(route);
+      const meta = routeMeta(route);
+      const hardRisk = summary.blocked + summary.waterNoCrossing + summary.manualBlocked;
+      let score = routeRiskScore(route);
+      if ((meta.source === "naver" || meta.source === "google") && hardRisk === 0) {
+        score -= 12000;
+      } else if (meta.source === "naver" || meta.source === "google") {
+        score -= 1600;
+      }
+      if (meta.source === "astar" && hardRisk === 0) {
+        score -= state.vehicleKey === "person" ? 2200 : 700;
+      }
+      return score;
+    }
+
     function rankedGoogleRouteCandidates() {
       if (!state.googleRouteCandidates.length) return [];
       if (state.googleRouteEndpointKey !== currentEndpointKey()) return [];
@@ -4874,6 +4919,43 @@
       }
     }
 
+    function applyExternalRouteNetworkEvidence() {
+      const routes = [
+        ...state.naverRouteCandidates,
+        ...state.googleRouteCandidates
+      ];
+      if (!routes.length || !state.cells.length) return 0;
+      let stamped = 0;
+      for (const route of routes) {
+        const meta = routeMeta(route);
+        const source = meta.source === "google" ? "google_route_network" : "naver_route_network";
+        const width = meta.source === "google" ? 5.0 : 5.5;
+        const trace = routeTrace(route);
+        for (const point of trace) {
+          for (let dj = -1; dj <= 1; dj++) {
+            for (let di = -1; di <= 1; di++) {
+              if (Math.hypot(di, dj) > 1.15) continue;
+              const i = point.i + di;
+              const j = point.j + dj;
+              if (!inGrid(i, j)) continue;
+              const cell = state.cells[idx(i, j)];
+              cell.road = true;
+              cell.roadNetworkConfirmed = true;
+              cell.roadClass = cell.roadClass || "network_road";
+              cell.roadWidth = Math.max(cell.roadWidth || 0, width);
+              cell.source = source;
+              cell.sourceConfidence = Math.max(cell.sourceConfidence || 0, 0.78);
+              if (cell.water) {
+                setCrossingStatus(cell, cell.crossingStatus === "confirmed" ? "confirmed" : "candidate", `${source}_water_intersection`);
+              }
+              stamped += 1;
+            }
+          }
+        }
+      }
+      return stamped;
+    }
+
     function rankedExternalRouteCandidates() {
       return [
         ...rankedNaverRouteCandidates(),
@@ -4891,15 +4973,10 @@
 
     function mergeRouteCandidates(fallbackRoutes) {
       const externalRoutes = rankedExternalRouteCandidates();
-      if (!externalRoutes.length) return fallbackRoutes;
-
-      const externalHasBlock = externalRoutes.some(route => {
-        const summary = summarizeRoute(route);
-        return summary.blocked > 0 || summary.waterNoCrossing > 0 || summary.manualBlocked > 0;
-      });
-      const externalLimit = externalHasBlock && fallbackRoutes.length ? 2 : 3;
-      const merged = externalRoutes.slice(0, externalLimit);
-      if (externalHasBlock && fallbackRoutes.length) merged.push(fallbackRoutes[0]);
+      const merged = [...externalRoutes, ...fallbackRoutes]
+        .map((route, index) => ({ route, index, score: routeSelectionScore(route) }))
+        .sort((a, b) => a.score - b.score || a.index - b.index)
+        .map(item => item.route);
       return merged.slice(0, 3);
     }
 
@@ -4990,9 +5067,6 @@
       const fallbackRoutes = buildFallbackRouteCandidates(routeStart, routeEnd, externalActive);
       state.routeCandidates = mergeRouteCandidates(fallbackRoutes);
       if (state.activeRouteIndex >= state.routeCandidates.length) {
-        state.activeRouteIndex = 0;
-      }
-      if (state.routeCandidates[state.activeRouteIndex] && routeMeta(state.routeCandidates[state.activeRouteIndex]).source === "astar" && externalActive) {
         state.activeRouteIndex = 0;
       }
       if (!state.routeCandidates.length) {
@@ -5806,6 +5880,7 @@
         el.dataStatus.textContent = "격자 생성";
         rebuildExternalRouteCandidates();
         state.cells = createBaseGrid();
+        const networkStamped = applyExternalRouteNetworkEvidence();
         if (state.routeLayer) {
           state.routeLayer.remove();
           state.routeLayer = null;
@@ -5814,7 +5889,9 @@
         renderCrossingCandidates();
         gridLayer._draw();
 
-        el.dataStatus.textContent = "지형 로딩";
+        el.dataStatus.textContent = networkStamped
+          ? `도로 네트워크 ${compactNumber(networkStamped)}칸 보존 · 지형 로딩`
+          : "지형 로딩";
         try {
           const filled = await loadTerrainRgb();
           el.dataStatus.textContent = `지형 ${compactNumber(filled)}`;
