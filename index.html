@@ -1488,11 +1488,11 @@
       nextStampId: 1,
       manualBlockReason: "restricted",
       stampSize: 3,
-      start: { i: 155, j: 339 },
-      end: { i: 347, j: 161 },
+      start: null,
+      end: null,
       startLatLng: null,
       endLatLng: null,
-      endpointDirty: false,
+      endpointDirty: true,
       rebuilding: false,
       pendingRebuild: false,
       endpointVersion: 0,
@@ -1692,6 +1692,10 @@
       ].join(",");
     }
 
+    function hasEndpoints() {
+      return !!(state.startLatLng && state.endLatLng);
+    }
+
     function setAoiSizeKm(sizeKm) {
       const requested = Number(sizeKm);
       const bounded = Number.isFinite(requested) && requested > 0
@@ -1733,6 +1737,10 @@
     }
 
     function setRoiPlanForCurrentEndpoints() {
+      if (!hasEndpoints()) {
+        setRoiPlan([], "direct");
+        return;
+      }
       const endpointKey = currentEndpointKey();
       if (state.naverRouteEndpointKey === endpointKey && state.naverRawRoutes.length) {
         setRoiPlanFromRawRoutes(state.naverRawRoutes, "naver");
@@ -1764,9 +1772,13 @@
     function setRouteInputValues() {
       if (el.startSearchInput && state.startLatLng) {
         el.startSearchInput.value = `출발 ${state.startLatLng.lat.toFixed(5)}, ${state.startLatLng.lng.toFixed(5)}`;
+      } else if (el.startSearchInput) {
+        el.startSearchInput.value = "";
       }
       if (el.endSearchInput && state.endLatLng) {
         el.endSearchInput.value = `도착 ${state.endLatLng.lat.toFixed(5)}, ${state.endLatLng.lng.toFixed(5)}`;
+      } else if (el.endSearchInput) {
+        el.endSearchInput.value = "";
       }
     }
 
@@ -2056,6 +2068,7 @@
     }
 
     async function computeDevelopRoutePlanViaServer() {
+      if (!hasEndpoints()) throw new Error("missing_endpoints");
       const routePlanUrl = developRoutePlanUrl();
       const start = `${state.startLatLng.lng},${state.startLatLng.lat}`;
       const goal = `${state.endLatLng.lng},${state.endLatLng.lat}`;
@@ -2077,6 +2090,7 @@
     }
 
     async function computeNaverRoutesViaProxy() {
+      if (!hasEndpoints()) throw new Error("missing_endpoints");
       const proxyUrl = ensureNaverProxyUrl();
       if (!proxyUrl) throw new Error("missing_naver_proxy_url");
       const start = `${state.startLatLng.lng},${state.startLatLng.lat}`;
@@ -2108,6 +2122,12 @@
 
     async function refreshNaverRouteCandidates() {
       try {
+        if (!hasEndpoints()) {
+          clearDisplayedRouteForEndpointChange();
+          updateAoiChip();
+          el.dataStatus.textContent = "출발지와 도착지를 먼저 지도에서 지정하세요";
+          return;
+        }
         if (!ensureNaverProxyUrl()) return;
         updateNaverRouteStatus("routing");
         let rawRoutes = [];
@@ -2145,6 +2165,7 @@
     }
 
     async function computeGoogleRoutesViaRest() {
+      if (!hasEndpoints()) throw new Error("missing_endpoints");
       const key = ensureGoogleApiKey();
       const body = {
         origin: { location: { latLng: { latitude: state.startLatLng.lat, longitude: state.startLatLng.lng } } },
@@ -2189,6 +2210,7 @@
     }
 
     async function computeGoogleRoutesViaJsLibrary() {
+      if (!hasEndpoints()) throw new Error("missing_endpoints");
       await ensureGoogleMapsLoaded();
       const { Route } = await google.maps.importLibrary("routes");
       const result = await Route.computeRoutes({
@@ -2224,6 +2246,12 @@
 
     async function refreshGoogleRouteCandidates() {
       try {
+        if (!hasEndpoints()) {
+          clearDisplayedRouteForEndpointChange();
+          updateAoiChip();
+          el.dataStatus.textContent = "출발지와 도착지를 먼저 지도에서 지정하세요";
+          return;
+        }
         if (!ensureGoogleApiKey()) return;
         updateGoogleRouteStatus("routing");
         await setupGoogleAutocomplete();
@@ -2422,6 +2450,7 @@
     }
 
     function syncEndpointLatLngsFromCells() {
+      if (!state.start || !state.end) return;
       const start = ijToLatLng(state.start.i, state.start.j);
       const end = ijToLatLng(state.end.i, state.end.j);
       state.startLatLng = { lat: start[0], lng: start[1] };
@@ -3172,6 +3201,11 @@
     }
 
     async function requestSamInferenceForCurrentAoi({ force = false } = {}) {
+      if (!hasEndpoints()) {
+        updateSamInferenceStatus("stale");
+        el.dataStatus.textContent = "출발지와 도착지를 먼저 지도에서 지정하세요";
+        return false;
+      }
       if (!force && state.samDataset && samDatasetMatchesCurrentAoi()) {
         updateSamInferenceStatus("reused");
         return true;
@@ -3239,6 +3273,11 @@
     }
 
     async function refreshSamInferenceForCurrentAoi() {
+      if (!hasEndpoints()) {
+        updateSamInferenceStatus("stale");
+        el.dataStatus.textContent = "출발지와 도착지를 먼저 지도에서 지정하세요";
+        return false;
+      }
       const ok = await requestSamInferenceForCurrentAoi({ force: true });
       if (!ok || !state.cells.length) return false;
       applySamSegmentationGrid();
@@ -4433,11 +4472,22 @@
 
     const startIcon = L.divIcon({ html: '<div class="marker start">S</div>', className: "", iconSize: [24, 24], iconAnchor: [12, 12] });
     const endIcon = L.divIcon({ html: '<div class="marker end">D</div>', className: "", iconSize: [24, 24], iconAnchor: [12, 12] });
-    const startMarker = L.marker(ijToLatLng(state.start.i, state.start.j), { icon: startIcon, draggable: true }).addTo(map);
-    const endMarker = L.marker(ijToLatLng(state.end.i, state.end.j), { icon: endIcon, draggable: true }).addTo(map);
+    const startMarker = L.marker([state.center.lat, state.center.lng], { icon: startIcon, draggable: true });
+    const endMarker = L.marker([state.center.lat, state.center.lng], { icon: endIcon, draggable: true });
 
     function markerForEndpoint(targetKey) {
       return targetKey === "start" ? startMarker : endMarker;
+    }
+
+    function setEndpointMarkerVisible(targetKey) {
+      const marker = markerForEndpoint(targetKey);
+      const latLng = state[`${targetKey}LatLng`];
+      if (!latLng) {
+        if (map.hasLayer(marker)) marker.remove();
+        return;
+      }
+      marker.setLatLng(latLng);
+      if (!map.hasLayer(marker)) marker.addTo(map);
     }
 
     function clearDisplayedRouteForEndpointChange() {
@@ -4469,7 +4519,7 @@
       state.endpointVersion += 1;
       resetBusyStateForEndpointChange();
       state[`${targetKey}LatLng`] = { lat: latLng.lat, lng: latLng.lng };
-      markerForEndpoint(targetKey).setLatLng(latLng);
+      setEndpointMarkerVisible(targetKey);
       setMode("inspect");
       clearGoogleRouteCandidates(true);
       clearNaverRouteCandidates(true);
@@ -4478,7 +4528,11 @@
       setRouteInputValues();
       updateAoiChip();
       clearDisplayedRouteForEndpointChange();
-      el.dataStatus.textContent = "지점 지정 완료 · 경로 계산 필요";
+      el.dataStatus.textContent = hasEndpoints()
+        ? "출발/도착 지정 완료 · 경로 계산 필요"
+        : targetKey === "start"
+          ? "출발지 지정 완료 · 도착지를 지도에서 지정하세요"
+          : "도착지 지정 완료 · 출발지를 지도에서 지정하세요";
     }
 
     function snapMarker(marker, targetKey) {
@@ -5065,6 +5119,12 @@
     }
 
     async function recomputeRoute(detail) {
+      if (!hasEndpoints()) {
+        clearDisplayedRouteForEndpointChange();
+        updateAoiChip();
+        el.dataStatus.textContent = "출발지와 도착지를 먼저 지도에서 지정하세요";
+        return;
+      }
       if (state.endpointDirty) {
         clearDisplayedRouteForEndpointChange();
         return;
@@ -5107,6 +5167,10 @@
     }
 
     function computeVehicleRoutePlans() {
+      if (!hasEndpoints() || !state.start || !state.end) {
+        state.vehicleRoutePlans = {};
+        return;
+      }
       const activeVehicleKey = state.vehicleKey;
       const plans = {};
       for (const vehicleKey of Object.keys(vehicles)) {
@@ -5120,14 +5184,17 @@
     }
 
     function computeRoutePlanForCurrentVehicle(vehicleKey) {
-      const routeStart = nearestPassableCell(state.start, 12);
-      const routeEnd = nearestPassableCell(state.end, 12);
       const emptyPlan = {
         vehicleKey,
         routeCandidates: [],
         activeRouteIndex: 0,
         endpointSnap: { startM: 0, endM: 0 }
       };
+      if (!state.start || !state.end) {
+        return emptyPlan;
+      }
+      const routeStart = nearestPassableCell(state.start, 12);
+      const routeEnd = nearestPassableCell(state.end, 12);
       if (!routeStart || !routeEnd) {
         return emptyPlan;
       }
@@ -5907,17 +5974,16 @@
     }
 
     function updateEndpointMarkers() {
-      const start = state.startLatLng
-        ? [state.startLatLng.lat, state.startLatLng.lng]
-        : ijToLatLng(state.start.i, state.start.j);
-      const end = state.endLatLng
-        ? [state.endLatLng.lat, state.endLatLng.lng]
-        : ijToLatLng(state.end.i, state.end.j);
-      startMarker.setLatLng(start);
-      endMarker.setLatLng(end);
+      setEndpointMarkerVisible("start");
+      setEndpointMarkerVisible("end");
     }
 
     function updateAoiChip() {
+      if (!hasEndpoints()) {
+        document.getElementById("aoiChip").textContent =
+          "출발지/도착지 지정 대기 · 두 지점 지정 후 5km x 5km SAM 판독";
+        return;
+      }
       const routeKm = state.roiPlanDistanceM > 0
         ? state.roiPlanDistanceM / 1000
         : state.startLatLng && state.endLatLng
@@ -5935,6 +6001,13 @@
     }
 
     async function rebuildAoi(reason = "rebuild") {
+      if (!hasEndpoints()) {
+        clearDisplayedRouteForEndpointChange();
+        updateEndpointMarkers();
+        updateAoiChip();
+        el.dataStatus.textContent = "출발지와 도착지를 먼저 지도에서 지정하세요";
+        return;
+      }
       if (state.rebuilding) {
         state.pendingRebuild = true;
         return;
@@ -6048,8 +6121,7 @@
       installNaverProxyFromUrl();
       installSamApiFromUrl();
       setAoiSizeKm(state.aoiSizeKm);
-      syncEndpointLatLngsFromCells();
-      setRoiPlan(directRoutePlanLatLngs(), "direct");
+      setRoiPlan([], "direct");
       setRouteInputValues();
       syncSpeedInputs();
       el.aoiSizeSelect.value = state.aoiSizeMode;
@@ -6061,7 +6133,10 @@
       el.gridOpacitySlider.value = String(Math.round(state.gridOpacity * 100));
       el.gridOpacityValue.textContent = String(Math.round(state.gridOpacity * 100));
       updateStampLabel();
-      await rebuildAoi("boot");
+      updateEndpointMarkers();
+      clearDisplayedRouteForEndpointChange();
+      updateAoiChip();
+      el.dataStatus.textContent = "출발지와 도착지를 지도에서 지정하세요";
       await setupGoogleAutocomplete();
     }
 
