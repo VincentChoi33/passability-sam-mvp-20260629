@@ -3589,7 +3589,7 @@
           confidence: clamp(confidence, 0.2, 0.95)
         };
       }
-      if (cell.roadNetworkConfirmed) {
+      if (isProtectedRoadNetworkCell(cell, input)) {
         const roadBase = Math.max(1.2, roadClassCost(input.roadClass || "network_road"));
         reasons.push("road_network_confirmed");
         return {
@@ -3850,6 +3850,13 @@
       if (surface.landcover === "road") risk *= 0.35;
       if (cell.slope > 16) risk *= 0.75;
       return clamp(risk, 0, 1);
+    }
+
+    function isProtectedRoadNetworkCell(cell, input = null) {
+      if (!cell) return false;
+      if (cell.roadNetworkConfirmed) return true;
+      const road = input ? input.road : cell.road;
+      return !!road;
     }
 
     function roadClassCost(cls) {
@@ -4212,7 +4219,7 @@
 
     function analysisColor(cell, alpha, manualBlock = false) {
       if (manualBlock) return zoneColor(cell.zone, alpha, true);
-      if (cell.roadNetworkConfirmed) return roadNetworkColor(alpha);
+      if (isProtectedRoadNetworkCell(cell)) return roadNetworkColor(alpha);
       if (state.analysisLayer === "hydrology") return hydrologyColor(cell, alpha);
       if (state.analysisLayer === "segmentation") return segmentationColor(cell, alpha);
       if (state.analysisLayer === "slope") return slopeColor(cell.slope, alpha);
@@ -5165,7 +5172,7 @@
       const cell = state.cells[idx(point.i, point.j)];
       const input = effectiveCellInputs(cell);
       if (state.manualBlocked.has(cellKey(point.i, point.j))) return "black";
-      if (cell.roadNetworkConfirmed) return "green";
+      if (isProtectedRoadNetworkCell(cell, input)) return "green";
       if (!Number.isFinite(cell.cost)) return "red";
       if (input.water && !input.waterCrossing && !input.road) return "red";
       if (cell.zone === "red") return "red";
