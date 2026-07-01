@@ -3590,7 +3590,7 @@
         };
       }
       if (isProtectedRoadNetworkCell(cell, input)) {
-        const roadBase = Math.max(1.2, roadClassCost(input.roadClass || "network_road"));
+        const roadBase = protectedRoadCost(input.roadClass || "network_road");
         reasons.push("road_network_confirmed");
         return {
           zone: "green",
@@ -3857,6 +3857,10 @@
       if (cell.roadNetworkConfirmed) return true;
       const road = input ? input.road : cell.road;
       return !!road;
+    }
+
+    function protectedRoadCost(cls) {
+      return clamp(roadClassCost(cls), 1.2, 2.1);
     }
 
     function roadClassCost(cls) {
@@ -4908,8 +4912,14 @@
       return summary.blocked * 100000
         + summary.waterNoCrossing * 25000
         + summary.manualBlocked * 18000
+        + (summary.dist / 1000) * 180
         + summary.meanCost * 900
         + summary.minutes;
+    }
+
+    function directEndpointDistanceM() {
+      if (!state.start || !state.end) return CELL_M;
+      return Math.max(CELL_M, Math.hypot(state.start.i - state.end.i, state.start.j - state.end.j) * CELL_M);
     }
 
     function routeSelectionScore(route) {
@@ -4918,12 +4928,16 @@
       const hardRisk = summary.blocked + summary.waterNoCrossing + summary.manualBlocked;
       let score = routeRiskScore(route);
       if ((meta.source === "naver" || meta.source === "google") && hardRisk === 0) {
-        score -= 12000;
+        const detourRatio = summary.dist / directEndpointDistanceM();
+        score -= 1200;
+        score += Math.max(0, detourRatio - 2.6) * 4200;
+        score += Math.max(0, detourRatio - 6.0) * 9000;
       } else if (meta.source === "naver" || meta.source === "google") {
-        score -= 1600;
+        score -= 400;
       }
       if (meta.source === "astar" && hardRisk === 0) {
-        score -= state.vehicleKey === "person" ? 2200 : 700;
+        score -= state.vehicleKey === "person" ? 2200 : 1400;
+        if (summary.meanCost <= 3.2) score -= 1200;
       }
       return score;
     }
