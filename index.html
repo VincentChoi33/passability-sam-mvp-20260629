@@ -1462,6 +1462,7 @@
       crossingCandidates: [],
       route: [],
       routeCandidates: [],
+      vehicleRoutePlans: {},
       googleRawRoutes: [],
       googleRouteCandidates: [],
       googleRouteEndpointKey: "",
@@ -4403,6 +4404,7 @@
 
     function clearDisplayedRouteForEndpointChange() {
       state.routeCandidates = [];
+      state.vehicleRoutePlans = {};
       state.activeRouteIndex = 0;
       state.route = [];
       clearRouteLayer();
@@ -4496,6 +4498,9 @@
         const index = Number(button.dataset.routeIndex);
         if (!state.routeCandidates[index]) return;
         state.activeRouteIndex = index;
+        if (state.vehicleRoutePlans[state.vehicleKey]) {
+          state.vehicleRoutePlans[state.vehicleKey].activeRouteIndex = index;
+        }
         renderActiveRoute();
         updateRouteOptionButtons();
       });
@@ -4510,10 +4515,11 @@
     });
     el.vehicleSelect.addEventListener("change", async event => {
       state.vehicleKey = event.target.value;
-      state.activeRouteIndex = 0;
       syncSpeedInputs();
       classifyCells();
-      if (state.cells.length && !state.endpointDirty) {
+      if (state.vehicleRoutePlans[state.vehicleKey]) {
+        applyStoredVehicleRoutePlan(state.vehicleKey);
+      } else if (state.cells.length && !state.endpointDirty) {
         await recomputeRoute(`최적경로 탐색중 · ${vehicles[state.vehicleKey].label} 기준`);
       } else {
         updateVehicleCompare([]);
@@ -5048,27 +5054,58 @@
     }
 
     function recomputeRouteNow() {
+      computeVehicleRoutePlans();
+      applyStoredVehicleRoutePlan(state.vehicleKey);
+    }
+
+    function computeVehicleRoutePlans() {
+      const activeVehicleKey = state.vehicleKey;
+      const plans = {};
+      for (const vehicleKey of Object.keys(vehicles)) {
+        state.vehicleKey = vehicleKey;
+        classifyCells();
+        plans[vehicleKey] = computeRoutePlanForCurrentVehicle(vehicleKey);
+      }
+      state.vehicleRoutePlans = plans;
+      state.vehicleKey = activeVehicleKey;
+      classifyCells();
+    }
+
+    function computeRoutePlanForCurrentVehicle(vehicleKey) {
       const routeStart = nearestPassableCell(state.start, 12);
       const routeEnd = nearestPassableCell(state.end, 12);
+      const emptyPlan = {
+        vehicleKey,
+        routeCandidates: [],
+        activeRouteIndex: 0,
+        endpointSnap: { startM: 0, endM: 0 }
+      };
       if (!routeStart || !routeEnd) {
-        state.routeCandidates = [];
-        state.activeRouteIndex = 0;
-        state.route = [];
-        clearRouteLayer();
-        setRouteMetricsUnavailable("차단");
-        updateRouteOptionButtons();
-        return;
+        return emptyPlan;
       }
-      state.endpointSnap = {
+      const endpointSnap = {
         startM: Math.hypot(routeStart.i - state.start.i, routeStart.j - state.start.j) * CELL_M,
         endM: Math.hypot(routeEnd.i - state.end.i, routeEnd.j - state.end.j) * CELL_M
       };
       const externalActive = rankedExternalRouteCandidates().length > 0;
       const fallbackRoutes = buildFallbackRouteCandidates(routeStart, routeEnd, externalActive);
-      state.routeCandidates = mergeRouteCandidates(fallbackRoutes);
-      if (state.activeRouteIndex >= state.routeCandidates.length) {
-        state.activeRouteIndex = 0;
-      }
+      return {
+        vehicleKey,
+        routeCandidates: mergeRouteCandidates(fallbackRoutes),
+        activeRouteIndex: 0,
+        endpointSnap
+      };
+    }
+
+    function applyStoredVehicleRoutePlan(vehicleKey) {
+      const plan = state.vehicleRoutePlans[vehicleKey] || {
+        routeCandidates: [],
+        activeRouteIndex: 0,
+        endpointSnap: { startM: 0, endM: 0 }
+      };
+      state.routeCandidates = plan.routeCandidates || [];
+      state.activeRouteIndex = Math.min(plan.activeRouteIndex || 0, Math.max(0, state.routeCandidates.length - 1));
+      state.endpointSnap = plan.endpointSnap || { startM: 0, endM: 0 };
       if (!state.routeCandidates.length) {
         state.route = [];
         clearRouteLayer();
@@ -5711,12 +5748,12 @@
     }
 
     function updateVehicleCompare(route) {
-      const meta = routeMeta(route);
       for (const button of el.vehicleCompareButtons) {
         const vehicleKey = button.dataset.vehicleKey;
-        const serverEta = meta.vehicleEtas?.[vehicleKey];
-        const summary = serverEta && Number.isFinite(Number(serverEta.minutes))
-          ? { minutes: Number(serverEta.minutes), avgSpeed: Number(serverEta.avgSpeedKph || 0), source: "develop" }
+        const plan = state.vehicleRoutePlans[vehicleKey];
+        const planRoute = plan?.routeCandidates?.[plan.activeRouteIndex || 0] || plan?.routeCandidates?.[0] || null;
+        const summary = planRoute
+          ? summarizeRouteTimeForVehicle(planRoute, vehicleKey)
           : summarizeRouteTimeForVehicle(route || [], vehicleKey);
         const timeEl = button.querySelector(".mode-time");
         if (timeEl) timeEl.textContent = Number.isFinite(summary.minutes) ? formatDuration(summary.minutes) : "-";
@@ -5728,17 +5765,10 @@
     function updateRouteMetrics(route) {
       const summary = summarizeRoute(route);
       const meta = routeMeta(route);
-      const serverEta = meta.vehicleEtas?.[state.vehicleKey];
-      const displayMinutes = serverEta && Number.isFinite(Number(serverEta.minutes))
-        ? Number(serverEta.minutes)
-        : summary.minutes;
-      const displaySpeed = serverEta && Number.isFinite(Number(serverEta.avgSpeedKph))
-        ? Number(serverEta.avgSpeedKph)
-        : summary.avgSpeed;
       updateVehicleCompare(route);
       el.distanceMetric.textContent = `${(summary.dist / 1000).toFixed(2)} km`;
-      el.costMetric.textContent = formatDuration(displayMinutes);
-      el.speedMetric.textContent = `${displaySpeed.toFixed(1)} km/h`;
+      el.costMetric.textContent = formatDuration(summary.minutes);
+      el.speedMetric.textContent = `${summary.avgSpeed.toFixed(1)} km/h`;
       el.difficultyMetric.textContent = `${summary.meanCost.toFixed(1)} ${difficultyLabel(summary.meanCost)}`;
       el.yellowMetric.textContent = `${summary.caution}/${summary.traceLength}`;
       el.reasonBox.innerHTML = `
