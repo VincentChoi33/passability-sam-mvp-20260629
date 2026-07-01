@@ -4189,8 +4189,8 @@
     }
 
     function analysisColor(cell, alpha, manualBlock = false) {
-      if (manualBlock) return zoneColor(cell.zone, alpha, true);
       if (cell.roadNetworkConfirmed) return roadNetworkColor(alpha);
+      if (manualBlock) return zoneColor(cell.zone, alpha, true);
       if (state.analysisLayer === "hydrology") return hydrologyColor(cell, alpha);
       if (state.analysisLayer === "segmentation") return segmentationColor(cell, alpha);
       if (state.analysisLayer === "slope") return slopeColor(cell.slope, alpha);
@@ -5142,8 +5142,8 @@
       if (!inGrid(point.i, point.j)) return "red";
       const cell = state.cells[idx(point.i, point.j)];
       const input = effectiveCellInputs(cell);
-      if (state.manualBlocked.has(cellKey(point.i, point.j))) return "red";
       if (cell.roadNetworkConfirmed) return "green";
+      if (state.manualBlocked.has(cellKey(point.i, point.j))) return "red";
       if (!Number.isFinite(cell.cost)) return "red";
       if (input.water && !input.waterCrossing && !input.road) return "red";
       if (cell.zone === "red") return "red";
