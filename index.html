@@ -5164,7 +5164,7 @@
       if (!inGrid(point.i, point.j)) return "red";
       const cell = state.cells[idx(point.i, point.j)];
       const input = effectiveCellInputs(cell);
-      if (state.manualBlocked.has(cellKey(point.i, point.j))) return "red";
+      if (state.manualBlocked.has(cellKey(point.i, point.j))) return "black";
       if (cell.roadNetworkConfirmed) return "green";
       if (!Number.isFinite(cell.cost)) return "red";
       if (input.water && !input.waterCrossing && !input.road) return "red";
@@ -5175,6 +5175,7 @@
     }
 
     function routeWrapperColor(zone) {
+      if (zone === "black") return "#030406";
       if (zone === "red") return "#e14b4b";
       if (zone === "orange") return "#f08a3e";
       if (zone === "yellow") return "#e0b23c";
@@ -5182,7 +5183,7 @@
     }
 
     function worseRouteWrapperZone(a, b) {
-      const rank = { green: 0, yellow: 1, orange: 2, red: 3 };
+      const rank = { green: 0, yellow: 1, orange: 2, red: 3, black: 4 };
       return rank[a] >= rank[b] ? a : b;
     }
 
