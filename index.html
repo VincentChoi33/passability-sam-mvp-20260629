@@ -1284,7 +1284,7 @@
             </button>
           </div>
         </div>
-        <button id="routeBtn" class="route-recalc">Naver 기반 경로 계산</button>
+        <button id="routeBtn" class="route-recalc">경로 계산</button>
       </div>
       <div class="topbar">
         <div id="aoiChip" class="chip">관심영역: 5km x 5km, 10m 격자</div>
@@ -4657,7 +4657,7 @@
       setMapBusy(active, "최적경로 탐색중", detail);
       el.routeBtn.disabled = active;
       el.routeBtn.classList.toggle("is-loading", active);
-      el.routeBtn.textContent = active ? "최적경로 탐색중" : "Naver 기반 경로 계산";
+      el.routeBtn.textContent = active ? "최적경로 탐색중" : "경로 계산";
       el.routeOptionButtons.forEach(button => {
         if (active) button.disabled = true;
       });
