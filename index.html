@@ -974,14 +974,14 @@
         <div class="control">
           <label for="gridOpacitySlider">격자 표시 강도: <span id="gridOpacityValue">58</span>%</label>
           <input id="gridOpacitySlider" type="range" min="20" max="90" value="58" step="2" />
-          <p class="note">관심영역은 경로 주변 계산 범위이고, 표시 강도만 낮춰 배경지도를 더 잘 보이게 할 수 있습니다.</p>
+          <p class="note">관심영역은 S/D 중앙점 기준 5km x 5km 계산 범위이고, 표시 강도만 낮춰 배경지도를 더 잘 보이게 할 수 있습니다.</p>
         </div>
         <div class="control">
           <label for="aoiSizeSelect">관심영역 크기</label>
           <select id="aoiSizeSelect" disabled>
-            <option value="route" selected>경로 주변 자동 · 최대 5km</option>
+            <option value="5" selected>S/D 중앙점 기준 5km x 5km · 고정</option>
           </select>
-          <p class="note">먼저 도로 경로를 구한 뒤, 그 경로가 지나가는 영역에 여유 폭을 붙여 SAM3.1 판독 범위를 잡습니다.</p>
+          <p class="note">먼저 도로 경로를 구한 뒤, S/D 중앙점 기준 5km x 5km를 SAM3.1 판독 범위로 잡고 그 안에서 경로 wrapper를 평가합니다.</p>
         </div>
         <div class="control">
           <label for="baseLayerSelect">배경지도</label>
@@ -1008,10 +1008,10 @@
               <span id="samInferenceStatus" class="google-route-status">서버 대기</span>
             </div>
             <div class="google-route-actions">
-              <button id="samInferenceBtn" type="button">현재 경로 주변 재추론</button>
+              <button id="samInferenceBtn" type="button">현재 5km 영역 재추론</button>
             </div>
           </div>
-          <p class="note">SAM3.1 영상분할은 경로 주변 영역별로 새로 계산되어야 합니다. 현재 경로의 위성영상 bbox와 10m grid 조건을 develop 서버에 보내고, 돌아온 segmentation grid를 네이버 경로 위에 덮어 위험도를 평가합니다.</p>
+          <p class="note">SAM3.1 영상분할은 S/D 중앙점 기준 5km 영역별로 새로 계산되어야 합니다. 현재 5km bbox와 10m grid 조건을 develop 서버에 보내고, 돌아온 segmentation grid를 네이버 경로 위에 덮어 위험도를 평가합니다.</p>
         </div>
       </section>
 
@@ -1149,7 +1149,7 @@
           </div>
           <div class="explain-block">
             <h3>SAM3.1 판독 결과</h3>
-            <p>현재 샘플 관심영역에는 develop 서버의 SAM3.1 weight로 만든 segmentation JSON을 추가로 읽습니다. 네이버 도로 경로가 먼저 정해지면 그 경로 주변 위성영상을 export하고, 전체 이미지를 한 번 판독한 뒤 768px 타일을 192px씩 겹쳐 다시 판독해서 작은 물줄기와 좁은 선형로를 보강합니다. 이번 판독은 물, 소하천/계류, 일반 도로, 산지도로/임도, 등산로/보행로, 교량/암거 후보, 수목을 따로 저장합니다. 출발지/도착지나 네이버 경로가 바뀌면 기존 JSON을 잘라 재사용하는 것이 아니라, 새 bbox와 grid 조건으로 위성영상을 다시 export하고 SAM3.1을 다시 실행해야 합니다.</p>
+            <p>현재 샘플 관심영역에는 develop 서버의 SAM3.1 weight로 만든 segmentation JSON을 추가로 읽습니다. 네이버 도로 경로가 먼저 정해지면 S/D 중앙점 기준 5km 위성영상을 export하고, 전체 이미지를 한 번 판독한 뒤 768px 타일을 192px씩 겹쳐 다시 판독해서 작은 물줄기와 좁은 선형로를 보강합니다. 이번 판독은 물, 소하천/계류, 일반 도로, 산지도로/임도, 등산로/보행로, 교량/암거 후보, 수목을 따로 저장합니다. 출발지/도착지가 바뀌면 기존 JSON을 잘라 재사용하는 것이 아니라, 새 bbox와 grid 조건으로 위성영상을 다시 export하고 SAM3.1을 다시 실행해야 합니다.</p>
           </div>
           <div class="explain-block">
             <h3>DEM 수문분석 결합</h3>
@@ -1157,7 +1157,7 @@
           </div>
           <div class="explain-block">
             <h3>격자가 깔리는 이유</h3>
-            <p>경로 주변 관심영역을 10m 격자로 쪼개 각 칸마다 경사, 도로 여부, 수계, 건물, 지표분류, 강우 영향을 계산합니다. 현재 MVP는 경로 bounds에 여유 폭을 붙인 뒤 최대 5km x 5km 안에서 계산합니다. 좁은 경로는 더 작은 grid로 계산하고, 긴 경로는 서버 타일링 방식으로 나누는 구조가 다음 단계입니다. 이후 이동 주체별로 같은 칸도 다르게 평가합니다. 전국 단위는 10m 격자가 약 10억 칸 규모라 브라우저 한 화면 계산이 아니라 타일/캐시 서버 방식으로 나눠 처리해야 합니다.</p>
+            <p>S/D 중앙점 기준 5km x 5km 관심영역을 10m 격자로 쪼개 각 칸마다 경사, 도로 여부, 수계, 건물, 지표분류, 강우 영향을 계산합니다. 현재 MVP는 항상 500 x 500, 총 25만 칸을 계산합니다. 네이버 경로가 이 5km 박스 밖으로 나가면 경로 일부가 판독영역 밖이라고 표시하고, 긴 경로는 서버 타일링 방식으로 나누는 구조가 다음 단계입니다. 이후 이동 주체별로 같은 칸도 다르게 평가합니다. 전국 단위는 10m 격자가 약 10억 칸 규모라 브라우저 한 화면 계산이 아니라 타일/캐시 서버 방식으로 나눠 처리해야 합니다.</p>
           </div>
           <div class="explain-block">
             <h3>색상 판정</h3>
@@ -1300,11 +1300,7 @@
     const DEFAULT_CENTER = { lat: 37.7338, lng: 127.4232 };
     const CELL_M = 10;
     const DEFAULT_AOI_SIZE_KM = 5;
-    const DEFAULT_AOI_SIZE_MODE = "route";
-    const MIN_ROUTE_AOI_SIZE_KM = 1.2;
-    const MAX_ROUTE_AOI_SIZE_KM = 5;
-    const ROUTE_CORRIDOR_PADDING_M = 600;
-    const ROUTE_ENDPOINT_KEEP_INSIDE_M = 180;
+    const DEFAULT_AOI_SIZE_MODE = "5";
     let GRID_N = 500;
     let HALF_M = (GRID_N * CELL_M) / 2;
     const METERS_PER_LAT = 111320;
@@ -1495,10 +1491,9 @@
       roiPlanSource: "direct",
       roiPlanDistanceM: 0,
       roiPlanSpanM: 0,
-      roiPlanCorridorM: ROUTE_CORRIDOR_PADDING_M,
       roiPlanBounds: null,
       roiPlanClipped: false,
-      roiPlanFocus: "route",
+      roiPlanFocus: "endpoint_midpoint",
       osmLoaded: false,
       stats: null
     };
@@ -1682,10 +1677,10 @@
 
     function setAoiSizeKm(sizeKm) {
       const requested = Number(sizeKm);
-      const bounded = Number.isFinite(requested)
-        ? clamp(requested, MIN_ROUTE_AOI_SIZE_KM, MAX_ROUTE_AOI_SIZE_KM)
+      const bounded = Number.isFinite(requested) && requested > 0
+        ? requested
         : DEFAULT_AOI_SIZE_KM;
-      GRID_N = Math.max(32, Math.round((bounded * 1000) / CELL_M));
+      GRID_N = Math.round((bounded * 1000) / CELL_M);
       state.aoiSizeKm = (GRID_N * CELL_M) / 1000;
       HALF_M = (GRID_N * CELL_M) / 2;
     }
@@ -1715,6 +1710,7 @@
     }
 
     function applyPendingAoiSize() {
+      setAoiSizeKm(DEFAULT_AOI_SIZE_KM);
       state.pendingAoiSizeMode = null;
       if (el.aoiSizeSelect) el.aoiSizeSelect.value = state.aoiSizeMode;
     }
@@ -2457,31 +2453,32 @@
           spanM: 0,
           clipped: false,
           bounds: null,
-          focus: "route"
+          focus: "endpoint_midpoint"
         };
       }
 
-      const { center: routeCenter, widthM, heightM } = spanMetersForLatLngBounds(bounds);
-      const requestedSideM = Math.max(widthM, heightM) + ROUTE_CORRIDOR_PADDING_M * 2;
-      const maxSideM = MAX_ROUTE_AOI_SIZE_KM * 1000;
-      const sideM = clamp(
-        requestedSideM,
-        MIN_ROUTE_AOI_SIZE_KM * 1000,
-        maxSideM
-      );
-      const clipped = requestedSideM > sideM + CELL_M;
-      const endpointBounds = latLngBoundsForPoints([state.startLatLng, state.endLatLng]);
-      const endpointGuard = expandLatLngBoundsByMeters(endpointBounds, ROUTE_ENDPOINT_KEEP_INSIDE_M);
-      const center = clipped
-        ? clampAoiCenterToIncludeBounds(centerOfLatLngBounds(endpointBounds), endpointGuard, sideM)
-        : routeCenter;
+      const center = midpointLatLng(state.startLatLng, state.endLatLng);
+      const sideM = DEFAULT_AOI_SIZE_KM * 1000;
+      const halfLat = (sideM / 2) / METERS_PER_LAT;
+      const halfLng = (sideM / 2) / metersPerLngAt(center.lat);
+      const aoiBounds = {
+        north: center.lat + halfLat,
+        south: center.lat - halfLat,
+        east: center.lng + halfLng,
+        west: center.lng - halfLng
+      };
+      const clipped = bounds.north > aoiBounds.north
+        || bounds.south < aoiBounds.south
+        || bounds.east > aoiBounds.east
+        || bounds.west < aoiBounds.west;
+      const { widthM, heightM } = spanMetersForLatLngBounds(bounds);
       return {
         center,
-        sizeKm: sideM / 1000,
+        sizeKm: DEFAULT_AOI_SIZE_KM,
         spanM: Math.max(widthM, heightM),
         clipped,
         bounds,
-        focus: clipped ? "endpoints" : "route"
+        focus: clipped ? "route_outside_fixed_aoi" : "endpoint_midpoint"
       };
     }
 
@@ -2539,7 +2536,6 @@
       state.center = plan.center;
       setAoiSizeKm(plan.sizeKm);
       state.roiPlanSpanM = plan.spanM;
-      state.roiPlanCorridorM = ROUTE_CORRIDOR_PADDING_M;
       state.roiPlanBounds = plan.bounds;
       state.roiPlanClipped = plan.clipped;
       state.roiPlanFocus = plan.focus;
@@ -3031,11 +3027,10 @@
           latLngs: state.roiPlanLatLngs
         },
         routeCorridor: {
-          mode: "route_first_wrapper",
-          paddingM: state.roiPlanCorridorM,
-          endpointKeepInsideM: ROUTE_ENDPOINT_KEEP_INSIDE_M,
+          mode: "endpoint_midpoint_5km_wrapper",
+          fixedSideM: DEFAULT_AOI_SIZE_KM * 1000,
           focus: state.roiPlanFocus,
-          clippedToMaxAoi: state.roiPlanClipped,
+          routeOutsideFixedAoi: state.roiPlanClipped,
           bounds: state.roiPlanBounds
         }
       };
@@ -3175,7 +3170,7 @@
       rebuildCrossingCandidates();
       renderCrossingCandidates();
       const stats = state.samMaskStats || state.samDataset?.stats || {};
-      el.dataStatus.textContent = `SAM3.1 경로 주변 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/건물${compactNumber(stats.buildingCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
+      el.dataStatus.textContent = `SAM3.1 5km 영역 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/건물${compactNumber(stats.buildingCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
       await recomputeRoute("최적경로 탐색중 · SAM3.1 경로 wrapper 반영");
       gridLayer._draw();
       showCellReason(Math.floor(GRID_N / 2), Math.floor(GRID_N / 2));
@@ -5660,16 +5655,12 @@
       const sourceLabel = roiPlanSourceLabel();
       if (state.endpointDirty) {
         document.getElementById("aoiChip").textContent =
-          `경로 계산 대기 · 도로 경로 먼저 산출 후 경로 주변 SAM 판독 · 지정 거리 ${routeKm.toFixed(1)}km`;
+          `경로 계산 대기 · 도로 경로 먼저 산출 후 S/D 중앙점 5km SAM 판독 · 지정 거리 ${routeKm.toFixed(1)}km`;
         return;
       }
-      const clipText = state.roiPlanClipped
-        ? state.roiPlanFocus === "endpoints"
-          ? " · 경로가 넓어 S/D 포함 우선"
-          : " · 최대 5km로 제한"
-        : "";
+      const clipText = state.roiPlanClipped ? " · 경로 일부가 5km 밖" : "";
       document.getElementById("aoiChip").textContent =
-        `경로 주변 판독영역: ${aoiSizeLabel()} · ${aoiCellCountLabel()} · ${sourceLabel} ${routeKm.toFixed(1)}km · 주변 ${Math.round(state.roiPlanCorridorM)}m${clipText}`;
+        `판독영역: S/D 중앙점 기준 ${aoiSizeLabel()} 고정 · ${aoiCellCountLabel()} · ${sourceLabel} ${routeKm.toFixed(1)}km${clipText}`;
     }
 
     async function rebuildAoi(reason = "rebuild") {
@@ -5680,7 +5671,7 @@
       state.rebuilding = true;
       state.pendingRebuild = false;
       applyPendingAoiSize();
-      el.dataStatus.textContent = `${roiPlanSourceLabel()} 기준 경로 주변 ROI 계산`;
+      el.dataStatus.textContent = `S/D 중앙점 기준 5km ROI 계산 · ${roiPlanSourceLabel()} wrapper 평가`;
 
       updateAoiCenterFromRoutePlan();
       state.endpointDirty = false;
@@ -5716,7 +5707,7 @@
       if (samReadyForAoi) {
         el.dataStatus.textContent = "OSM 참고정보 + SAM3.1 판독 적용";
       } else if (samRecomputeNeeded()) {
-        el.dataStatus.textContent = "OSM 참고정보 로딩 · SAM3.1 경로 주변 재연산 필요";
+        el.dataStatus.textContent = "OSM 참고정보 로딩 · SAM3.1 5km 영역 재연산 필요";
       }
       const osmOk = await loadOsmFeatures();
       if (!osmOk) applySyntheticFeatures();
@@ -5733,9 +5724,9 @@
       }
       if (samApplied) {
         const stats = state.samMaskStats || state.samDataset?.stats || {};
-        el.dataStatus.textContent = `SAM3.1 경로 주변 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/건물${compactNumber(stats.buildingCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
+        el.dataStatus.textContent = `SAM3.1 5km 영역 판독 결과 수계${compactNumber(stats.waterCells || 0)}/소하천${compactNumber(stats.streamCells || 0)}/건물${compactNumber(stats.buildingCells || 0)}/도로${compactNumber(stats.roadCells || 0)} + DEM소하천${compactNumber(hydroFusion.stream || 0)}/배수${compactNumber(hydroFusion.drainage || 0)}/교차${compactNumber(stats.crossingCells || stats.crossings || 0)}`;
       } else if (samRecomputeNeeded()) {
-        el.dataStatus.textContent = `${el.dataStatus.textContent} · SAM3.1 경로 주변 재연산 필요`;
+        el.dataStatus.textContent = `${el.dataStatus.textContent} · SAM3.1 5km 영역 재연산 필요`;
       }
       await recomputeRoute("최적경로 탐색중 · 경로 wrapper 판정 완료");
       gridLayer._draw();
